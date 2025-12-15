@@ -88,6 +88,10 @@
             cursor: grabbing; 
         }
 
+        canvas.creating-path { 
+            cursor: crosshair; 
+        }
+
         .btn { 
             padding: 0.6rem 1.2rem; 
             border-radius: 12px; 
@@ -352,20 +356,34 @@
         }
 
         .path-node {
-            width: 16px;
-            height: 16px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: #3b82f6;
-            border: 2px solid white;
+            border: 3px solid white;
             position: absolute;
             cursor: move;
-            z-index: 30;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 40;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
 
         .path-node:hover {
-            transform: scale(1.3);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.7);
+            z-index: 50;
+        }
+
+        .path-node.dragging {
+            opacity: 0.8;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+
+        .path-node-start {
+            background: #10b981;
+        }
+
+        .path-node-end {
+            background: #ef4444;
         }
         
         .save-indicator {
@@ -374,17 +392,45 @@
             right: 10px;
             background: #10b981;
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.8rem;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
             z-index: 1000;
             display: none;
             animation: slideUp 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         
         @keyframes slideUp {
             from { transform: translateY(20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+        }
+
+        #path-info {
+            margin-top: 10px;
+            padding: 8px;
+            background: #dbeafe;
+            border-radius: 8px;
+            border: 1px solid #93c5fd;
+            text-align: center;
+        }
+
+        .path-creation-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .path-point-number {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 10px;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -514,9 +560,29 @@
                         <button onclick="togglePathEditMode()" id="btn-edit-path" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded-full border border-emerald-300 transition-colors">
                             ✏️ Éditer le chemin
                         </button>
+                        <button onclick="togglePathCreationMode()" id="btn-create-path" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-full border border-blue-300 transition-colors ml-2">
+                            📍 Créer des points
+                        </button>
                         <button onclick="resetPathSettings()" class="text-xs text-gray-400 hover:text-red-500 underline ml-2">
                             Réinitialiser
                         </button>
+                    </div>
+
+                    <div class="path-creation-controls" id="path-creation-controls" style="display: none;">
+                        <button onclick="addPathPointAtCenter()" class="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded">
+                            ➕ Point centre
+                        </button>
+                        <button onclick="clearPathPoints()" class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">
+                            🗑️ Vider
+                        </button>
+                        <button onclick="autoGeneratePath()" class="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded">
+                            🔄 Auto
+                        </button>
+                    </div>
+
+                    <div id="path-info" class="text-xs text-center mt-2 bg-blue-50 p-2 rounded border border-blue-100">
+                        <div class="font-bold text-blue-700">Points du chemin: <span id="path-points-count">0</span></div>
+                        <div class="text-blue-500 text-[10px]" id="path-status">⚠️ Ajoutez au moins 2 points</div>
                     </div>
                 </div>
 
@@ -579,27 +645,27 @@
                     <div class="control-row">
                         <span class="control-label">Zoom</span>
                         <div class="flex gap-1">
-                            <button onclick="adjustTrackScale(-0.1)" class="control-button">-</button>
+                            <button onclick="adjustTrackScale(-0.1)" class="control-button">1</button>
                             <span id="scale-display" class="text-xs w-8 text-center leading-6 font-mono">1.0</span>
-                            <button onclick="adjustTrackScale(0.1)" class="control-button">+</button>
+                            <button onclick="adjustTrackScale(0.1)" class="control-button">2</button>
                         </div>
                     </div>
                     
                     <div class="control-row">
                         <span class="control-label">Largeur</span>
                         <div class="flex gap-1">
-                            <button onclick="adjustTrackWidth(-5)" class="control-button">-</button>
+                            <button onclick="adjustTrackWidth(-5)" class="control-button">3</button>
                             <span id="width-display" class="text-xs w-10 text-center leading-6 font-mono">90%</span>
-                            <button onclick="adjustTrackWidth(5)" class="control-button">+</button>
+                            <button onclick="adjustTrackWidth(5)" class="control-button">4</button>
                         </div>
                     </div>
                     
                     <div class="control-row">
                         <span class="control-label">Hauteur</span>
                         <div class="flex gap-1">
-                            <button onclick="adjustTrackHeight(-5)" class="control-button">-</button>
+                            <button onclick="adjustTrackHeight(-5)" class="control-button">5</button>
                             <span id="height-display" class="text-xs w-10 text-center leading-6 font-mono">90%</span>
-                            <button onclick="adjustTrackHeight(5)" class="control-button">+</button>
+                            <button onclick="adjustTrackHeight(5)" class="control-button">6</button>
                         </div>
                     </div>
                     
@@ -651,6 +717,16 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-500">Sauvegarde auto</span>
+                        <span id="last-save-time" class="text-[10px] text-gray-400">Jamais</span>
+                    </div>
+                    <button onclick="manualSave()" class="w-full mt-1 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded">
+                        💾 Sauvegarder maintenant
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -692,7 +768,7 @@
     </div>
     
     <div id="save-indicator" class="save-indicator">
-        💾 Sauvegarde auto
+        💾 Sauvegarde auto effectuée
     </div>
 
     <script>
@@ -707,8 +783,10 @@
             '#EC4899', '#F43F5E', '#334155', '#475569', '#000000'
         ];
         
-        // Clé pour la sauvegarde locale
+        // Clés pour la sauvegarde locale
         const STORAGE_KEY = 'snake_race_settings';
+        const AUTO_SAVE_INTERVAL = 10000; // 10 secondes
+        const SAVE_THROTTLE = 2000; // 2 secondes entre sauvegardes automatiques
 
         // Variables globales
         const canvas = document.getElementById('raceCanvas');
@@ -750,9 +828,13 @@
         let pathCurve = 0;
         let path3DEnabled = false;
         let pathEditMode = false;
+        let pathCreationMode = false;
         let pathNodes = [];
         let draggingNode = null;
-        let showPath = true; // Nouvelle variable pour afficher/cacher le tracé
+        let showPath = true;
+        let lastSaveTime = null;
+        let saveThrottleTimeout = null;
+        let autoSaveInterval = null;
 
         // Variables de drag
         let isDraggingTrack = false;
@@ -768,7 +850,6 @@
         let startTop = 0;
         
         let autoRestartInterval = null;
-        let autoSaveTimeout = null;
 
         // Initialisation
         function init() {
@@ -795,9 +876,13 @@
             
             // Initialiser les nœuds du chemin
             generateDefaultPath();
+            updatePathInfoDisplay();
             
             // Charger les paramètres sauvegardés
             loadSettings();
+            
+            // Démarrer la sauvegarde automatique périodique
+            startAutoSaveInterval();
             
             // Dessiner la scène initiale
             draw();
@@ -806,9 +891,9 @@
             setTimeout(testServerConnection, 1000);
         }
 
-        // Sauvegarde automatique
-        function saveSettings() {
-            const settings = {
+        // SAUVEGARDE AUTOMATIQUE COMPLÈTE
+        function getFullSettings() {
+            return {
                 // Paramètres du chemin
                 pathWidth,
                 pathColor,
@@ -816,7 +901,7 @@
                 pathCurve,
                 path3DEnabled,
                 showPath,
-                pathNodes,
+                pathNodes: pathNodes.map(node => ({ x: node.x, y: node.y })),
                 
                 // Paramètres de la piste
                 trackScale,
@@ -835,30 +920,110 @@
                 backgroundX,
                 backgroundY,
                 
-                // Données de l'interface
-                registeredNames,
-                winnersHistory,
+                // Images (sous forme de DataURL si disponibles)
+                trackImageData: trackImage ? canvasToDataURL(trackImage) : null,
+                backgroundImageData: backgroundImage ? canvasToDataURL(backgroundImage) : null,
                 
-                // URL des images (si possible)
+                // Données de l'interface
+                registeredNames: [...registeredNames],
+                waitingQueue: [...waitingQueue],
+                winnersHistory: [...winnersHistory],
+                players: players.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    color: p.color,
+                    progress: p.progress,
+                    isFinished: p.isFinished
+                })),
+                
+                // État du jeu
+                isRacing,
+                winner: winner ? {
+                    name: winner.name,
+                    color: winner.color
+                } : null,
+                
+                // URLs des images
                 trackUrl: document.getElementById('track-url-input').value,
-                backgroundUrl: document.getElementById('background-url-input').value
+                backgroundUrl: document.getElementById('background-url-input').value,
+                
+                // Méta-données
+                savedAt: new Date().toISOString(),
+                version: '2.0'
             };
-            
+        }
+
+        function canvasToDataURL(image) {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-                showSaveIndicator();
-                console.log("✅ Paramètres sauvegardés");
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = image.width;
+                tempCanvas.height = image.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(image, 0, 0);
+                return tempCanvas.toDataURL('image/png');
             } catch (e) {
-                console.error("❌ Erreur lors de la sauvegarde:", e);
+                console.error("Erreur conversion image:", e);
+                return null;
             }
         }
 
-        function loadSettings() {
+        function dataURLToImage(dataURL) {
+            return new Promise((resolve, reject) => {
+                if (!dataURL) {
+                    resolve(null);
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+                img.src = dataURL;
+            });
+        }
+
+        function saveSettings() {
+            if (saveThrottleTimeout) {
+                clearTimeout(saveThrottleTimeout);
+            }
+            
+            saveThrottleTimeout = setTimeout(() => {
+                try {
+                    const settings = getFullSettings();
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+                    
+                    // Mettre à jour l'affichage du temps de sauvegarde
+                    const now = new Date();
+                    lastSaveTime = now;
+                    document.getElementById('last-save-time').textContent = 
+                        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    showSaveIndicator();
+                    console.log("✅ Sauvegarde complète effectuée");
+                } catch (e) {
+                    console.error("❌ Erreur sauvegarde:", e);
+                    // Essayer une sauvegarde légère sans images
+                    try {
+                        const lightSettings = getFullSettings();
+                        lightSettings.trackImageData = null;
+                        lightSettings.backgroundImageData = null;
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSettings));
+                        console.log("✅ Sauvegarde légère effectuée");
+                    } catch (e2) {
+                        console.error("❌ Échec sauvegarde légère:", e2);
+                    }
+                }
+            }, SAVE_THROTTLE);
+        }
+
+        async function loadSettings() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
-                if (!saved) return;
+                if (!saved) {
+                    console.log("Aucune sauvegarde trouvée");
+                    return;
+                }
                 
                 const settings = JSON.parse(saved);
+                console.log("Chargement des paramètres sauvegardés...");
                 
                 // Restaurer les paramètres du chemin
                 if (settings.pathWidth !== undefined) {
@@ -940,32 +1105,127 @@
                 if (settings.backgroundX !== undefined) backgroundX = settings.backgroundX;
                 if (settings.backgroundY !== undefined) backgroundY = settings.backgroundY;
                 
+                // Restaurer les images
+                if (settings.trackImageData) {
+                    try {
+                        trackImage = await dataURLToImage(settings.trackImageData);
+                        console.log("✅ Piste restaurée");
+                    } catch (e) {
+                        console.error("❌ Erreur chargement piste:", e);
+                    }
+                }
+                
+                if (settings.backgroundImageData) {
+                    try {
+                        backgroundImage = await dataURLToImage(settings.backgroundImageData);
+                        console.log("✅ Fond restauré");
+                    } catch (e) {
+                        console.error("❌ Erreur chargement fond:", e);
+                    }
+                }
+                
                 // Restaurer les données
                 if (settings.registeredNames) registeredNames = settings.registeredNames;
+                if (settings.waitingQueue) waitingQueue = settings.waitingQueue;
                 if (settings.winnersHistory) winnersHistory = settings.winnersHistory;
+                
+                // Restaurer les joueurs
+                if (settings.players && settings.players.length > 0) {
+                    players = settings.players.map(pData => {
+                        const player = new Player(pData.id, pData.name);
+                        player.color = pData.color || player.color;
+                        player.progress = pData.progress || 0;
+                        player.isFinished = pData.isFinished || false;
+                        return player;
+                    });
+                }
+                
+                // Restaurer l'état du jeu
+                if (settings.isRacing !== undefined) isRacing = settings.isRacing;
+                if (settings.winner && settings.winner.name) {
+                    winner = players.find(p => p.name === settings.winner.name) || 
+                            new Player(0, settings.winner.name);
+                    winner.color = settings.winner.color;
+                }
                 
                 // Restaurer les URLs
                 if (settings.trackUrl) document.getElementById('track-url-input').value = settings.trackUrl;
                 if (settings.backgroundUrl) document.getElementById('background-url-input').value = settings.backgroundUrl;
                 
+                // Mettre à jour l'affichage du temps de sauvegarde
+                if (settings.savedAt) {
+                    const saveDate = new Date(settings.savedAt);
+                    document.getElementById('last-save-time').textContent = 
+                        saveDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                
                 // Mettre à jour l'interface
                 renderPlayerList();
                 updateHistoryDisplay();
+                updateQueueDisplay();
+                updatePathInfoDisplay();
                 
-                console.log("✅ Paramètres chargés");
+                console.log("✅ Chargement terminé");
+                
+                // Redessiner
+                draw();
+                
             } catch (e) {
                 console.error("❌ Erreur lors du chargement:", e);
+                // En cas d'erreur, charger une sauvegarde de secours
+                try {
+                    const backup = localStorage.getItem(STORAGE_KEY + '_backup');
+                    if (backup) {
+                        console.log("Tentative de chargement depuis backup...");
+                        localStorage.setItem(STORAGE_KEY, backup);
+                        location.reload();
+                    }
+                } catch (e2) {
+                    console.error("❌ Échec chargement backup:", e2);
+                }
             }
         }
 
-        function autoSave() {
-            if (autoSaveTimeout) {
-                clearTimeout(autoSaveTimeout);
+        function startAutoSaveInterval() {
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
             }
             
-            autoSaveTimeout = setTimeout(() => {
+            // Sauvegarde toutes les 10 secondes
+            autoSaveInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    saveSettings();
+                }
+            }, AUTO_SAVE_INTERVAL);
+            
+            // Sauvegarde quand la page est quittée
+            window.addEventListener('beforeunload', () => {
                 saveSettings();
-            }, 1000); // Sauvegarde après 1 seconde d'inactivité
+                // Créer un backup
+                try {
+                    const settings = getFullSettings();
+                    localStorage.setItem(STORAGE_KEY + '_backup', JSON.stringify(settings));
+                } catch (e) {
+                    console.error("Erreur création backup:", e);
+                }
+            });
+            
+            // Sauvegarde quand la page devient invisible
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    saveSettings();
+                }
+            });
+        }
+
+        function manualSave() {
+            saveSettings();
+            const indicator = document.getElementById('save-indicator');
+            indicator.textContent = "💾 Sauvegarde manuelle effectuée";
+            indicator.style.display = 'block';
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 3000);
         }
 
         function showSaveIndicator() {
@@ -999,42 +1259,223 @@
                 }
             }
             
-            autoSave();
+            updatePathInfoDisplay();
+            saveSettings();
         }
 
+        // MODE CRÉATION DE POINTS
+        function togglePathCreationMode() {
+            // Si le mode édition est actif, le désactiver d'abord
+            if (pathEditMode) {
+                togglePathEditMode();
+            }
+            
+            pathCreationMode = !pathCreationMode;
+            const btn = document.getElementById('btn-create-path');
+            const controls = document.getElementById('path-creation-controls');
+            
+            if (pathCreationMode) {
+                btn.innerHTML = '💾 Fin création';
+                btn.style.background = '#dc2626';
+                btn.style.color = 'white';
+                controls.style.display = 'flex';
+                
+                // Activer le clic sur le canvas pour ajouter des points
+                canvas.addEventListener('click', addPathPointOnClick);
+                canvas.classList.add('creating-path');
+                
+                // Afficher les points existants
+                showAllPathPoints();
+                
+                alert("Mode création activé ! Cliquez sur la piste pour ajouter des points.");
+            } else {
+                btn.innerHTML = '📍 Créer des points';
+                btn.style.background = '#dbeafe';
+                btn.style.color = '#1e40af';
+                controls.style.display = 'none';
+                
+                // Désactiver le clic
+                canvas.removeEventListener('click', addPathPointOnClick);
+                canvas.classList.remove('creating-path');
+                
+                // Nettoyer l'affichage des points
+                hideAllPathPoints();
+                
+                // Sauvegarder si assez de points
+                if (pathNodes.length >= 2) {
+                    saveSettings();
+                }
+            }
+            
+            draw();
+        }
+
+        function addPathPointOnClick(event) {
+            if (!pathCreationMode) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            pathNodes.push({ x, y });
+            
+            updatePathInfoDisplay();
+            showAllPathPoints();
+            drawPathWithPoints();
+            saveSettings();
+        }
+
+        function addPathPointAtCenter() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            pathNodes.push({ x: centerX, y: centerY });
+            updatePathInfoDisplay();
+            showAllPathPoints();
+            drawPathWithPoints();
+            saveSettings();
+        }
+
+        function clearPathPoints() {
+            if (confirm("Voulez-vous vraiment supprimer tous les points du chemin ?")) {
+                pathNodes = [];
+                updatePathInfoDisplay();
+                hideAllPathPoints();
+                draw();
+                saveSettings();
+            }
+        }
+
+        function autoGeneratePath() {
+            if (confirm("Générer un chemin automatique ? Cela effacera les points actuels.")) {
+                generateDefaultPath();
+                showAllPathPoints();
+                draw();
+                saveSettings();
+            }
+        }
+
+        function showAllPathPoints() {
+            hideAllPathPoints();
+            
+            pathNodes.forEach((point, index) => {
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'path-node';
+                if (index === 0) nodeEl.classList.add('path-node-start');
+                if (index === pathNodes.length - 1 && pathNodes.length > 1) nodeEl.classList.add('path-node-end');
+                nodeEl.style.left = (point.x - 12) + 'px';
+                nodeEl.style.top = (point.y - 12) + 'px';
+                nodeEl.dataset.index = index;
+                nodeEl.title = `Point ${index + 1}`;
+                
+                // Ajouter un numéro
+                const number = document.createElement('div');
+                number.className = 'path-point-number';
+                number.innerText = (index + 1).toString();
+                nodeEl.appendChild(number);
+                
+                // Rendre le point déplaçable
+                nodeEl.addEventListener('mousedown', startPathPointDrag);
+                
+                document.getElementById('game-container').appendChild(nodeEl);
+            });
+        }
+
+        function hideAllPathPoints() {
+            document.querySelectorAll('.path-node').forEach(node => node.remove());
+        }
+
+        function startPathPointDrag(e) {
+            if (!pathCreationMode) return;
+            
+            const index = parseInt(e.target.dataset.index);
+            draggingNode = index;
+            dragMode = 'path';
+            
+            e.target.classList.add('dragging');
+            document.addEventListener('mousemove', updatePathPointPosition);
+            document.addEventListener('mouseup', stopPathPointDrag);
+        }
+
+        function updatePathPointPosition(e) {
+            if (draggingNode === null) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            pathNodes[draggingNode] = { x, y };
+            
+            const pointEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
+            if (pointEl) {
+                pointEl.style.left = (x - 12) + 'px';
+                pointEl.style.top = (y - 12) + 'px';
+            }
+            
+            drawPathWithPoints();
+        }
+
+        function stopPathPointDrag() {
+            draggingNode = null;
+            document.querySelectorAll('.path-node').forEach(node => node.classList.remove('dragging'));
+            document.removeEventListener('mousemove', updatePathPointPosition);
+            document.removeEventListener('mouseup', stopPathPointDrag);
+            
+            saveSettings();
+        }
+
+        function updatePathInfoDisplay() {
+            document.getElementById('path-points-count').textContent = pathNodes.length;
+            
+            const statusEl = document.getElementById('path-status');
+            if (pathNodes.length >= 2) {
+                statusEl.textContent = '✅ Chemin valide';
+                statusEl.style.color = '#10b981';
+            } else if (pathNodes.length === 1) {
+                statusEl.textContent = '⚠️ Ajoutez un autre point';
+                statusEl.style.color = '#f59e0b';
+            } else {
+                statusEl.textContent = '⚠️ Ajoutez au moins 2 points';
+                statusEl.style.color = '#ef4444';
+            }
+        }
+
+        // Fonctions ajustements chemin
         function adjustPathWidth(delta) {
             pathWidth = Math.max(2, Math.min(100, pathWidth + delta));
             document.getElementById('path-width-display').innerText = `${pathWidth}px`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function changePathColor() {
             pathColor = document.getElementById('path-color-input').value;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function resetPathColor() {
             pathColor = '#e2e8f0';
             document.getElementById('path-color-input').value = pathColor;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustPathPadding(delta) {
             pathPadding = Math.max(10, Math.min(200, pathPadding + delta));
             document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
-            generateDefaultPath();
+            if (!pathCreationMode) {
+                generateDefaultPath();
+            }
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustPathCurve(delta) {
             pathCurve = Math.max(0, Math.min(50, pathCurve + delta));
             document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function togglePath3D() {
@@ -1044,7 +1485,7 @@
             btn.style.background = path3DEnabled ? '#22c55e' : '#f3f4f6';
             btn.style.color = path3DEnabled ? 'white' : '#6b7280';
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function togglePathVisibility() {
@@ -1054,10 +1495,14 @@
             btn.style.background = showPath ? '#22c55e' : '#f3f4f6';
             btn.style.color = showPath ? 'white' : '#6b7280';
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function togglePathEditMode() {
+            if (pathCreationMode) {
+                togglePathCreationMode();
+            }
+            
             pathEditMode = !pathEditMode;
             const btn = document.getElementById('btn-edit-path');
             
@@ -1065,39 +1510,16 @@
                 btn.innerText = "💾 Sauvegarder chemin";
                 btn.style.background = '#dc2626';
                 btn.style.color = 'white';
-                showPathNodes();
+                showAllPathPoints();
             } else {
                 btn.innerText = "✏️ Éditer le chemin";
                 btn.style.background = '#bbf7d0';
                 btn.style.color = '#065f46';
-                hidePathNodes();
-                autoSave(); // Sauvegarder après édition
+                hideAllPathPoints();
+                saveSettings();
             }
             
             draw();
-        }
-
-        function showPathNodes() {
-            hidePathNodes();
-            
-            pathNodes.forEach((node, index) => {
-                const nodeEl = document.createElement('div');
-                nodeEl.className = 'path-node';
-                nodeEl.style.left = (node.x - 8) + 'px';
-                nodeEl.style.top = (node.y - 8) + 'px';
-                nodeEl.dataset.index = index;
-                nodeEl.addEventListener('mousedown', startNodeDrag);
-                document.getElementById('game-container').appendChild(nodeEl);
-            });
-        }
-
-        function hidePathNodes() {
-            document.querySelectorAll('.path-node').forEach(node => node.remove());
-        }
-
-        function startNodeDrag(e) {
-            draggingNode = parseInt(e.target.dataset.index);
-            e.preventDefault();
         }
 
         function resetPathSettings() {
@@ -1125,11 +1547,11 @@
             
             generateDefaultPath();
             draw();
-            autoSave();
+            saveSettings();
         }
 
         // Dessin du chemin
-        function drawPath() {
+        function drawPathWithPoints() {
             if (!showPath || pathNodes.length < 2) return;
 
             ctx.lineCap = 'round';
@@ -1194,18 +1616,24 @@
                 ctx.stroke();
             }
 
-            if (pathNodes.length >= 2) {
-                const lastNode = pathNodes[pathNodes.length - 1];
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(lastNode.x, lastNode.y, 20, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText("FIN", lastNode.x, lastNode.y);
+            // Dessiner les points en mode création
+            if (pathCreationMode && pathNodes.length > 0) {
+                pathNodes.forEach((point, index) => {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = index === 0 ? '#10b981' : 
+                                   index === pathNodes.length - 1 ? '#ef4444' : '#3b82f6';
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText((index + 1).toString(), point.x, point.y);
+                });
             }
         }
 
@@ -1219,8 +1647,7 @@
             img.onload = function() {
                 backgroundImage = img;
                 fitBackgroundImage();
-                alert("✅ Fond d'écran chargé !");
-                autoSave();
+                saveSettings();
             };
             img.onerror = function() {
                 alert("❌ Erreur de chargement de l'image de fond");
@@ -1237,7 +1664,7 @@
                 img.onload = function() {
                     backgroundImage = img;
                     fitBackgroundImage();
-                    autoSave();
+                    saveSettings();
                 };
                 img.src = e.target.result;
             };
@@ -1255,31 +1682,27 @@
             backgroundY = (canvas.height - backgroundImage.height * backgroundScale) / 2;
             
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustBackgroundOpacity(delta) {
             backgroundOpacity = Math.max(0.1, Math.min(1.0, backgroundOpacity + delta));
             document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustBackgroundBlur(delta) {
             backgroundBlur = Math.max(0, Math.min(20, backgroundBlur + delta));
             document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function clearBackground() {
             backgroundImage = null;
-            backgroundOpacity = 0.7;
-            backgroundBlur = 0;
-            document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
-            document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         // Fonctions pour la piste
@@ -1292,8 +1715,7 @@
             img.onload = function() {
                 trackImage = img;
                 fitTrackImage();
-                alert("✅ Piste chargée !");
-                autoSave();
+                saveSettings();
             };
             img.onerror = function() {
                 alert("❌ Erreur de chargement de l'image");
@@ -1310,7 +1732,7 @@
                 img.onload = function() {
                     trackImage = img;
                     fitTrackImage();
-                    autoSave();
+                    saveSettings();
                 };
                 img.src = e.target.result;
             };
@@ -1335,7 +1757,7 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustTrackScale(delta) {
@@ -1344,7 +1766,7 @@
             trackScale = Math.max(0.1, trackScale + delta);
             document.getElementById('scale-display').innerText = trackScale.toFixed(2);
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustTrackWidth(delta) {
@@ -1352,7 +1774,7 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             useCustomSize = true;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustTrackHeight(delta) {
@@ -1360,7 +1782,7 @@
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             useCustomSize = true;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function resetTrackSize() {
@@ -1373,29 +1795,33 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustOffsetY(delta) {
             globalBallOffsetY += delta;
             document.getElementById('offset-display').innerText = globalBallOffsetY;
-            generateDefaultPath();
+            if (!pathCreationMode) {
+                generateDefaultPath();
+            }
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function adjustRows(delta) {
             trackRows = Math.max(2, Math.min(10, trackRows + delta));
             document.getElementById('rows-display').innerText = trackRows;
-            generateDefaultPath();
+            if (!pathCreationMode) {
+                generateDefaultPath();
+            }
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function clearTrackImage() {
             trackImage = null;
             draw();
-            autoSave();
+            saveSettings();
         }
 
         function toggleDebug() {
@@ -1413,7 +1839,7 @@
             }
             
             draw();
-            autoSave();
+            saveSettings();
         }
 
         // Gestion du drag
@@ -1421,7 +1847,7 @@
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
             
-            if (pathEditMode && draggingNode !== null) {
+            if (pathCreationMode && draggingNode !== null) {
                 dragMode = 'path';
                 return;
             }
@@ -1449,8 +1875,8 @@
                 
                 const nodeEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
                 if (nodeEl) {
-                    nodeEl.style.left = (pathNodes[draggingNode].x - 8) + 'px';
-                    nodeEl.style.top = (pathNodes[draggingNode].y - 8) + 'px';
+                    nodeEl.style.left = (pathNodes[draggingNode].x - 12) + 'px';
+                    nodeEl.style.top = (pathNodes[draggingNode].y - 12) + 'px';
                 }
             } else if (isDraggingBackground && dragMode === 'background') {
                 backgroundX += deltaX;
@@ -1470,7 +1896,7 @@
             isDraggingBackground = false;
             if (dragMode === 'path') {
                 draggingNode = null;
-                autoSave(); // Sauvegarder après déplacement des nœuds
+                saveSettings();
             }
             canvas.classList.remove('dragging');
         }
@@ -1517,7 +1943,7 @@
                 }
             }
             
-            drawPath();
+            drawPathWithPoints();
         }
 
         // Calcul de position sur le chemin
@@ -1645,6 +2071,8 @@
                         message: 'Client web connecté',
                         timestamp: new Date().toISOString()
                     }));
+                    
+                    saveSettings();
                 };
                 
                 socket.onmessage = function(event) {
@@ -1664,6 +2092,7 @@
                     btn.innerText = "📡 Reconnecter";
                     btn.disabled = false;
                     socket = null;
+                    saveSettings();
                 };
                 
                 socket.onerror = function(error) {
@@ -1672,12 +2101,14 @@
                     statusDot.className = 'status-indicator status-off';
                     btn.innerText = "❌ Erreur - Réessayer";
                     btn.disabled = false;
+                    saveSettings();
                 };
                 
             } catch (error) {
                 console.error("❌ Erreur création WebSocket:", error);
                 btn.innerText = "❌ Erreur";
                 btn.disabled = false;
+                saveSettings();
             }
         }
 
@@ -1695,6 +2126,7 @@
                 case 'SNAKE_JOIN_SUCCESS':
                     console.log("✅ Joueur ajouté:", data);
                     updatePlayerCount(data.currentPlayers, data.maxPlayers);
+                    saveSettings();
                     break;
                     
                 case 'SNAKE_PLAYER_ADDED':
@@ -1704,6 +2136,7 @@
                 case 'SNAKE_GAME_STARTING':
                     console.log("🚀 Jeu démarré avec", data.players.length, "joueurs");
                     startGame();
+                    saveSettings();
                     break;
                     
                 case 'SNAKE_UPDATE':
@@ -1717,11 +2150,13 @@
                 case 'SNAKE_GAME_END':
                     console.log("🎮 Jeu terminé ! Classement:", data.rankings);
                     showFinalResults(data.rankings);
+                    saveSettings();
                     break;
                     
                 case 'SNAKE_GAME_RESET':
                     console.log("🔄 Jeu réinitialisé");
                     resetGame();
+                    saveSettings();
                     break;
                     
                 case 'PONG':
@@ -1818,12 +2253,14 @@
             if (isRacing) {
                 waitingQueue.push(name);
                 updateQueueDisplay();
+                saveSettings();
                 return;
             }
             
             if (registeredNames.length >= MAX_PLAYERS) {
                 waitingQueue.push(name);
                 updateQueueDisplay();
+                saveSettings();
                 return;
             }
             
@@ -1839,7 +2276,7 @@
             draw();
             renderPlayerList();
             checkAutoStart();
-            autoSave();
+            saveSettings();
         }
 
         // Fonctions d'interface
@@ -1854,6 +2291,7 @@
                 panel.style.display = 'none';
                 restoreBtn.classList.remove('hidden');
             }
+            saveSettings();
         }
 
         function startPanelDrag(e) {
@@ -1885,6 +2323,7 @@
             isDraggingPanel = false;
             document.removeEventListener('mousemove', onPanelDrag);
             document.removeEventListener('mouseup', stopPanelDrag);
+            saveSettings();
         }
 
         function addPlayerManual() {
@@ -1966,7 +2405,7 @@
             updateQueueDisplay();
             draw();
             checkAutoStart();
-            autoSave();
+            saveSettings();
         }
 
         function checkAutoStart() {
@@ -2042,8 +2481,11 @@
             canvas.height = container.clientHeight * 0.95;
             
             if (!isRacing && !winner) {
-                generateDefaultPath();
+                if (!pathCreationMode) {
+                    generateDefaultPath();
+                }
                 draw();
+                saveSettings();
             }
         }
 
@@ -2116,6 +2558,8 @@
             setTimeout(() => {
                 document.getElementById('leaderboard').style.display = 'block';
             }, 2000);
+            
+            saveSettings();
         }
 
         function endGame(winningPlayer) {
@@ -2159,7 +2603,7 @@
             updateHistoryDisplay();
             
             startAutoRestart();
-            autoSave();
+            saveSettings();
         }
 
         function updateHistoryDisplay() {
@@ -2263,7 +2707,7 @@
             renderPlayerList();
             draw();
             checkAutoStart();
-            autoSave();
+            saveSettings();
         }
 
         // Démarrer l'application
