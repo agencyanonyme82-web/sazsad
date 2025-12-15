@@ -7,6 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
 
         body { 
             font-family: 'Nunito', sans-serif; 
@@ -34,7 +39,7 @@
         }
         
         #draggable-panel { 
-            width: 420px; 
+            width: 450px; 
             background: rgba(255, 255, 255, 0.98); 
             backdrop-filter: blur(10px); 
             border-radius: 20px; 
@@ -265,6 +270,14 @@
             padding: 12px;
             margin-top: 12px;
         }
+
+        .player-name-section {
+            background: #fce7f3;
+            border: 2px solid #fbcfe8;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
         
         .control-row { 
             display: flex; 
@@ -432,6 +445,39 @@
             font-size: 10px;
             pointer-events: none;
         }
+
+        .font-preview {
+            width: 100%;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-weight: bold;
+            border: 2px solid #e5e7eb;
+            background: white;
+        }
+
+        .text-style-btn {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .text-style-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .text-style-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
     </style>
 </head>
 <body>
@@ -504,6 +550,92 @@
                     Lancer (Auto à 20) ⏳
                 </button>
 
+                <!-- NOUVELLE SECTION : STYLE DES NOMS DES JOUEURS -->
+                <div class="player-name-section">
+                    <h3 class="text-xs text-pink-600 mb-2 uppercase tracking-wide">🎯 Style des Noms</h3>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Taille police</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustNameSize(-2)" class="control-button">-</button>
+                            <span id="name-size-display" class="text-xs w-10 text-center leading-6 font-mono font-bold">19px</span>
+                            <button onclick="adjustNameSize(2)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Couleur texte</span>
+                        <div class="flex gap-1">
+                            <input type="color" id="name-color-input" value="#ffffff" onchange="changeNameColor()" class="color-preview">
+                            <button onclick="resetNameColor()" class="control-button text-xs">R</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Couleur ombre</span>
+                        <div class="flex gap-1">
+                            <input type="color" id="shadow-color-input" value="#000000" onchange="changeShadowColor()" class="color-preview">
+                            <button onclick="resetShadowColor()" class="control-button text-xs">R</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Flou ombre</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustShadowBlur(-1)" class="control-button">-</button>
+                            <span id="shadow-blur-display" class="text-xs w-10 text-center leading-6 font-mono">4px</span>
+                            <button onclick="adjustShadowBlur(1)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Décalage ombre</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustShadowOffset(-0.5)" class="control-button">-</button>
+                            <span id="shadow-offset-display" class="text-xs w-10 text-center leading-6 font-mono">1.0</span>
+                            <button onclick="adjustShadowOffset(0.5)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Police</span>
+                        <div class="flex gap-1">
+                            <select id="font-family-select" onchange="changeFontFamily()" class="text-xs border rounded p-1 flex-1">
+                                <option value="Nunito">Nunito</option>
+                                <option value="Poppins">Poppins</option>
+                                <option value="Montserrat">Montserrat</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Comic Neue">Comic Neue</option>
+                                <option value="Bangers">Bangers</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Style texte</span>
+                        <div class="flex gap-1">
+                            <button onclick="toggleTextBold()" id="btn-bold" class="text-style-btn active">G</button>
+                            <button onclick="toggleTextItalic()" id="btn-italic" class="text-style-btn">I</button>
+                            <button onclick="toggleTextUpperCase()" id="btn-uppercase" class="text-style-btn">AA</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <div class="font-preview" id="font-preview">
+                            AaBbCc
+                        </div>
+                    </div>
+
+                    <div class="mt-2 text-center">
+                        <button onclick="resetNameSettings()" class="text-xs text-gray-400 hover:text-red-500 underline">
+                            Réinitialiser
+                        </button>
+                    </div>
+                </div>
+
                 <div class="path-section">
                     <h3 class="text-xs text-emerald-600 mb-2 uppercase tracking-wide">🛤️ Chemin des Bulles</h3>
                     
@@ -536,7 +668,7 @@
                     <div class="control-row">
                         <span class="control-label">Courbure</span>
                         <div class="flex gap-1">
-                            <button onclick="adjustPathCurve(-5)" class="control-button">-</button>
+                            <button onclick="adjustPathCurve(-5)" class="control-button">  </button>
                             <span id="path-curve-display" class="text-xs w-10 text-center leading-6 font-mono">0px</span>
                             <button onclick="adjustPathCurve(5)" class="control-button">+</button>
                         </div>
@@ -836,6 +968,17 @@
         let saveThrottleTimeout = null;
         let autoSaveInterval = null;
 
+        // NOUVELLES VARIABLES POUR LE STYLE DES NOMS
+        let playerNameSize = 19; // Taille de police augmentée à 19px
+        let playerNameColor = '#ffffff'; // Couleur du texte
+        let playerNameShadowColor = '#000000'; // Couleur de l'ombre
+        let playerNameShadowBlur = 4; // Flou de l'ombre
+        let playerNameShadowOffset = 1.0; // Décalage de l'ombre
+        let playerNameFontFamily = 'Nunito'; // Police par défaut
+        let playerNameFontWeight = 'bold'; // Gras activé par défaut
+        let playerNameFontStyle = 'normal'; // Pas d'italique par défaut
+        let playerNameTextTransform = 'none'; // Pas de majuscules par défaut
+
         // Variables de drag
         let isDraggingTrack = false;
         let isDraggingBackground = false;
@@ -874,6 +1017,17 @@
             document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
             document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
             
+            // Initialiser les affichages pour les noms
+            document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
+            document.getElementById('name-color-input').value = playerNameColor;
+            document.getElementById('shadow-color-input').value = playerNameShadowColor;
+            document.getElementById('shadow-blur-display').innerText = `${playerNameShadowBlur}px`;
+            document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
+            document.getElementById('font-family-select').value = playerNameFontFamily;
+            
+            // Mettre à jour l'aperçu de la police
+            updateFontPreview();
+            
             // Initialiser les nœuds du chemin
             generateDefaultPath();
             updatePathInfoDisplay();
@@ -891,7 +1045,148 @@
             setTimeout(testServerConnection, 1000);
         }
 
-        // SAUVEGARDE AUTOMATIQUE COMPLÈTE
+        // NOUVELLES FONCTIONS POUR LE STYLE DES NOMS
+        function adjustNameSize(delta) {
+            playerNameSize = Math.max(8, Math.min(40, playerNameSize + delta));
+            document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function changeNameColor() {
+            playerNameColor = document.getElementById('name-color-input').value;
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function resetNameColor() {
+            playerNameColor = '#ffffff';
+            document.getElementById('name-color-input').value = playerNameColor;
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function changeShadowColor() {
+            playerNameShadowColor = document.getElementById('shadow-color-input').value;
+            draw();
+            saveSettings();
+        }
+
+        function resetShadowColor() {
+            playerNameShadowColor = '#000000';
+            document.getElementById('shadow-color-input').value = playerNameShadowColor;
+            draw();
+            saveSettings();
+        }
+
+        function adjustShadowBlur(delta) {
+            playerNameShadowBlur = Math.max(0, Math.min(20, playerNameShadowBlur + delta));
+            document.getElementById('shadow-blur-display').innerText = `${playerNameShadowBlur}px`;
+            draw();
+            saveSettings();
+        }
+
+        function adjustShadowOffset(delta) {
+            playerNameShadowOffset = Math.max(0, Math.min(5, playerNameShadowOffset + delta));
+            document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
+            draw();
+            saveSettings();
+        }
+
+        function changeFontFamily() {
+            playerNameFontFamily = document.getElementById('font-family-select').value;
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function toggleTextBold() {
+            const btn = document.getElementById('btn-bold');
+            if (playerNameFontWeight === 'bold') {
+                playerNameFontWeight = 'normal';
+                btn.classList.remove('active');
+            } else {
+                playerNameFontWeight = 'bold';
+                btn.classList.add('active');
+            }
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function toggleTextItalic() {
+            const btn = document.getElementById('btn-italic');
+            if (playerNameFontStyle === 'italic') {
+                playerNameFontStyle = 'normal';
+                btn.classList.remove('active');
+            } else {
+                playerNameFontStyle = 'italic';
+                btn.classList.add('active');
+            }
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function toggleTextUpperCase() {
+            const btn = document.getElementById('btn-uppercase');
+            if (playerNameTextTransform === 'uppercase') {
+                playerNameTextTransform = 'none';
+                btn.classList.remove('active');
+            } else {
+                playerNameTextTransform = 'uppercase';
+                btn.classList.add('active');
+            }
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        function updateFontPreview() {
+            const preview = document.getElementById('font-preview');
+            preview.style.fontFamily = playerNameFontFamily;
+            preview.style.fontSize = `${playerNameSize}px`;
+            preview.style.fontWeight = playerNameFontWeight;
+            preview.style.fontStyle = playerNameFontStyle;
+            preview.style.textTransform = playerNameTextTransform;
+            preview.style.color = playerNameColor;
+            
+            // Afficher le nom de la police
+            preview.textContent = `${playerNameFontFamily} AaBbCc`;
+        }
+
+        function resetNameSettings() {
+            playerNameSize = 19;
+            playerNameColor = '#ffffff';
+            playerNameShadowColor = '#000000';
+            playerNameShadowBlur = 4;
+            playerNameShadowOffset = 1.0;
+            playerNameFontFamily = 'Nunito';
+            playerNameFontWeight = 'bold';
+            playerNameFontStyle = 'normal';
+            playerNameTextTransform = 'none';
+            
+            document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
+            document.getElementById('name-color-input').value = playerNameColor;
+            document.getElementById('shadow-color-input').value = playerNameShadowColor;
+            document.getElementById('shadow-blur-display').innerText = `${playerNameShadowBlur}px`;
+            document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
+            document.getElementById('font-family-select').value = playerNameFontFamily;
+            
+            // Mettre à jour les boutons de style
+            document.getElementById('btn-bold').classList.add('active');
+            document.getElementById('btn-italic').classList.remove('active');
+            document.getElementById('btn-uppercase').classList.remove('active');
+            
+            updateFontPreview();
+            draw();
+            saveSettings();
+        }
+
+        // SAUVEGARDE AUTOMATIQUE COMPLÈTE (MODIFIÉE POUR INCLURE LES NOUVELLES VARIABLES)
         function getFullSettings() {
             return {
                 // Paramètres du chemin
@@ -902,6 +1197,17 @@
                 path3DEnabled,
                 showPath,
                 pathNodes: pathNodes.map(node => ({ x: node.x, y: node.y })),
+                
+                // Paramètres des noms des joueurs (NOUVEAU)
+                playerNameSize,
+                playerNameColor,
+                playerNameShadowColor,
+                playerNameShadowBlur,
+                playerNameShadowOffset,
+                playerNameFontFamily,
+                playerNameFontWeight,
+                playerNameFontStyle,
+                playerNameTextTransform,
                 
                 // Paramètres de la piste
                 trackScale,
@@ -949,7 +1255,7 @@
                 
                 // Méta-données
                 savedAt: new Date().toISOString(),
-                version: '2.0'
+                version: '2.1'
             };
         }
 
@@ -1060,6 +1366,59 @@
                     pathNodes = settings.pathNodes;
                 }
                 
+                // Restaurer les paramètres des noms des joueurs (NOUVEAU)
+                if (settings.playerNameSize !== undefined) {
+                    playerNameSize = settings.playerNameSize;
+                    document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
+                }
+                if (settings.playerNameColor) {
+                    playerNameColor = settings.playerNameColor;
+                    document.getElementById('name-color-input').value = playerNameColor;
+                }
+                if (settings.playerNameShadowColor) {
+                    playerNameShadowColor = settings.playerNameShadowColor;
+                    document.getElementById('shadow-color-input').value = playerNameShadowColor;
+                }
+                if (settings.playerNameShadowBlur !== undefined) {
+                    playerNameShadowBlur = settings.playerNameShadowBlur;
+                    document.getElementById('shadow-blur-display').innerText = `${playerNameShadowBlur}px`;
+                }
+                if (settings.playerNameShadowOffset !== undefined) {
+                    playerNameShadowOffset = settings.playerNameShadowOffset;
+                    document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
+                }
+                if (settings.playerNameFontFamily) {
+                    playerNameFontFamily = settings.playerNameFontFamily;
+                    document.getElementById('font-family-select').value = playerNameFontFamily;
+                }
+                if (settings.playerNameFontWeight) {
+                    playerNameFontWeight = settings.playerNameFontWeight;
+                    const btnBold = document.getElementById('btn-bold');
+                    if (playerNameFontWeight === 'bold') {
+                        btnBold.classList.add('active');
+                    } else {
+                        btnBold.classList.remove('active');
+                    }
+                }
+                if (settings.playerNameFontStyle) {
+                    playerNameFontStyle = settings.playerNameFontStyle;
+                    const btnItalic = document.getElementById('btn-italic');
+                    if (playerNameFontStyle === 'italic') {
+                        btnItalic.classList.add('active');
+                    } else {
+                        btnItalic.classList.remove('active');
+                    }
+                }
+                if (settings.playerNameTextTransform) {
+                    playerNameTextTransform = settings.playerNameTextTransform;
+                    const btnUpperCase = document.getElementById('btn-uppercase');
+                    if (playerNameTextTransform === 'uppercase') {
+                        btnUpperCase.classList.add('active');
+                    } else {
+                        btnUpperCase.classList.remove('active');
+                    }
+                }
+                
                 // Restaurer les paramètres de la piste
                 if (settings.trackScale !== undefined) {
                     trackScale = settings.trackScale;
@@ -1164,6 +1523,7 @@
                 updateHistoryDisplay();
                 updateQueueDisplay();
                 updatePathInfoDisplay();
+                updateFontPreview();
                 
                 console.log("✅ Chargement terminé");
                 
@@ -1986,7 +2346,7 @@
             return length;
         }
 
-        // Dessin des joueurs
+        // Dessin des joueurs (MODIFIÉ POUR UTILISER LES NOUVEAUX PARAMÈTRES)
         function drawPlayers() {
             if (players.length === 0) return;
             
@@ -1995,25 +2355,49 @@
                 
                 const pos = getPositionOnPath(player.progress);
                 
+                // Ombre portée de la bulle
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y + 3, 8, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fill();
                 
+                // Cercle du joueur (bulle)
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
                 ctx.fillStyle = player.color;
                 ctx.fill();
                 
+                // Bordure blanche de la bulle
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                ctx.fillStyle = '#1f2937';
-                ctx.font = 'bold 12px Nunito';
+                // Préparer le style du texte
+                let text = player.name;
+                if (playerNameTextTransform === 'uppercase') {
+                    text = text.toUpperCase();
+                }
+                
+                // Configurer la police
+                ctx.font = `${playerNameFontStyle} ${playerNameFontWeight} ${playerNameSize}px ${playerNameFontFamily}`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                ctx.fillText(player.name, pos.x, pos.y - 12);
+                
+                // Ombre du texte
+                ctx.shadowColor = playerNameShadowColor;
+                ctx.shadowBlur = playerNameShadowBlur;
+                ctx.shadowOffsetX = playerNameShadowOffset;
+                ctx.shadowOffsetY = playerNameShadowOffset;
+                
+                // Dessiner le texte
+                ctx.fillStyle = playerNameColor;
+                ctx.fillText(text, pos.x, pos.y - 12);
+                
+                // Réinitialiser l'ombre pour les prochains dessins
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
             });
         }
 
