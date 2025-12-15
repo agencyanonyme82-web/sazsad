@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course du Serpent - Mode Infini Auto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        body { 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #f0fdf4; 
+            overflow: hidden; 
+            touch-action: none; 
+            user-select: none; 
+            margin: 0;
+            padding: 0;
+        }
+        
+        h1, h2, h3, button, input, label { 
+            font-family: 'Fredoka One', cursive; 
+        }
+
+        #setup-layer { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 100; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            transition: opacity 0.3s ease; 
+        }
+        
+        #draggable-panel { 
+            width: 420px; 
+            background: rgba(255, 255, 255, 0.98); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05); 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            max-height: 90vh; 
+        }
+        
+        .panel-header { 
+            background: linear-gradient(135deg, #16a34a, #22c55e); 
+            color: white; 
+            padding: 14px 18px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            cursor: move; 
+            flex-shrink: 0; 
+        }
+        
+        .panel-content { 
+            padding: 18px; 
+            overflow-y: auto; 
+            flex-grow: 1; 
+        }
+
+        #game-container { 
+            position: relative; 
+            width: 100vw; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            background: #f0fdf4; 
+        }
+        
+        canvas { 
+            background: transparent; 
+            max-width: 100%; 
+            max-height: 100vh; 
+            cursor: default; 
+        }
+        
+        canvas.draggable { 
+            cursor: grab; 
+        } 
+        
+        canvas.dragging { 
+            cursor: grabbing; 
+        }
+
+        .btn { 
+            padding: 0.6rem 1.2rem; 
+            border-radius: 12px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            border: none; 
+            color: white; 
+            text-transform: uppercase; 
+            font-weight: bold; 
+            transition: all 0.2s ease; 
+        }
+        
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+        }
+        
+        .btn:active { 
+            transform: scale(0.97); 
+        }
+        
+        .btn-start { 
+            background: linear-gradient(135deg, #16a34a, #22c55e); 
+        }
+        
+        .btn-reset { 
+            background: linear-gradient(135deg, #dc2626, #ef4444); 
+        }
+        
+        .btn-connect { 
+            background: linear-gradient(135deg, #2563eb, #3b82f6); 
+        }
+
+        #winner-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.9); 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 50; 
+            color: white; 
+            text-align: center; 
+            backdrop-filter: blur(8px); 
+            animation: fadeIn 0.5s; 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; } 
+            to { opacity: 1; } 
+        }
+
+        .player-tag { 
+            background: rgba(255, 255, 255, 0.95); 
+            color: #333; 
+            padding: 16px 32px; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            margin-top: 12px; 
+            font-size: 2.5rem; 
+            display: inline-block; 
+            box-shadow: 0 0 30px rgba(255,255,255,0.7); 
+            border: 3px solid currentColor; 
+        }
+        
+        .name-badge { 
+            display: flex; 
+            align-items: center; 
+            background: white; 
+            padding: 8px 12px; 
+            border-radius: 10px; 
+            font-size: 0.9rem; 
+            font-weight: bold; 
+            color: #4b5563; 
+            animation: popIn 0.3s ease-out; 
+            margin-bottom: 6px; 
+            border-left-width: 6px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        }
+        
+        @keyframes popIn { 
+            0% { transform: scale(0); opacity: 0; } 
+            100% { transform: scale(1); opacity: 1; } 
+        }
+
+        #leaderboard { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            background: rgba(255, 255, 255, 0.98); 
+            padding: 18px; 
+            border-radius: 16px; 
+            font-size: 0.95rem; 
+            box-shadow: 0 10px 35px rgba(0,0,0,0.15); 
+            max-height: 320px; 
+            width: 260px; 
+            display: none; 
+            z-index: 20; 
+            border: 2px solid #e5e7eb; 
+        }
+        
+        @media (min-width: 768px) { 
+            #leaderboard { display: block; } 
+        }
+        
+        .status-indicator { 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 6px; 
+        }
+        
+        .status-off { 
+            background: #ef4444; 
+            box-shadow: 0 0 8px #ef4444; 
+        }
+        
+        .status-on { 
+            background: #22c55e; 
+            box-shadow: 0 0 8px #22c55e; 
+        }
+
+        .pulse-btn { 
+            animation: pulse-green 2s infinite; 
+        }
+        
+        @keyframes pulse-green { 
+            0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); } 
+            70% { box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); } 
+        }
+        
+        #queue-bar { 
+            background: #fff7ed; 
+            border: 2px dashed #f97316; 
+            color: #c2410c; 
+            padding: 10px; 
+            border-radius: 10px; 
+            margin-bottom: 12px; 
+            font-size: 0.85rem; 
+            font-weight: bold; 
+            text-align: center; 
+            display: none; 
+        }
+        
+        .custom-track-section { 
+            background: #eef2ff; 
+            border: 2px solid #c7d2fe; 
+            border-radius: 12px; 
+            padding: 12px; 
+            margin-top: 12px; 
+        }
+        
+        .background-section { 
+            background: #fef3c7; 
+            border: 2px solid #fde68a; 
+            border-radius: 12px; 
+            padding: 12px; 
+            margin-top: 12px; 
+        }
+
+        .path-section {
+            background: #f0fdf4;
+            border: 2px solid #bbf7d0;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+        
+        .control-row { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            background: white; 
+            padding: 6px 10px; 
+            border-radius: 8px; 
+            margin-bottom: 6px; 
+            border: 1px solid #e5e7eb; 
+        }
+        
+        .control-label { 
+            font-size: 0.75rem; 
+            font-weight: bold; 
+            color: #6b7280; 
+            text-transform: uppercase; 
+        }
+        
+        .history-item { 
+            display: flex; 
+            align-items: center; 
+            padding: 8px; 
+            background: white; 
+            border-radius: 8px; 
+            margin-bottom: 6px; 
+            font-size: 0.85rem; 
+            animation: slideIn 0.3s ease-out; 
+            border: 1px solid #f3f4f6; 
+        }
+        
+        @keyframes slideIn { 
+            from { transform: translateX(-20px); opacity: 0; } 
+            to { transform: translateX(0); opacity: 1; } 
+        }
+
+        .no-drag {
+            cursor: default;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        .control-button {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .control-button:hover {
+            background: #e5e7eb;
+            transform: scale(1.05);
+        }
+
+        .control-button:active {
+            transform: scale(0.95);
+        }
+
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+
+        .path-node {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 2px solid white;
+            position: absolute;
+            cursor: move;
+            z-index: 30;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .path-node:hover {
+            transform: scale(1.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        
+        .save-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #10b981;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <button id="restore-btn" onclick="togglePanel()" class="hidden fixed top-5 left-5 z-50 bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition-all hover:scale-110 border-2 border-white pulse-btn" title="Ouvrir le menu">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+
+    <div id="setup-layer">
+        <div id="draggable-panel">
+            <div class="panel-header" id="panel-header-drag">
+                <div class="flex items-center gap-2 pointer-events-none">
+                    <span class="text-lg">🎮 Contrôle Course</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="connection-status" class="flex items-center text-xs bg-black/20 px-2 py-1 rounded no-drag">
+                        <span class="status-indicator status-off" id="socket-dot"></span> 
+                        <span id="socket-text" class="hidden sm:inline">OFF</span>
+                    </div>
+                    <button onclick="togglePanel()" class="ml-1 text-white hover:bg-white/20 rounded p-1 transition-colors no-drag">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel-content custom-scrollbar">
+                <div class="mb-4 text-center">
+                    <button onclick="connectToServer()" id="btn-connect" class="btn btn-connect w-full mb-2 shadow-md">
+                        📡 Connecter Serveur
+                    </button>
+                    <p class="text-xs text-gray-500">Port 8832 | WebSocket</p>
+                </div>
+
+                <div class="flex items-center gap-2 mb-2 w-full">
+                    <input type="text" id="player-input" class="flex-1 border-2 border-green-500 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-green-200" placeholder="Pseudo..." maxlength="12" autocomplete="off">
+                    <button onclick="addPlayerManual()" class="bg-green-500 hover:bg-green-600 text-white rounded-lg px-4 py-2 font-bold transition-colors shadow-md">+</button>
+                </div>
+                
+                <button onclick="simulateJoin()" class="w-full btn bg-blue-500 hover:bg-blue-600 text-white py-2 mb-2 font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                    🎮 Rejoindre la course
+                </button>
+
+                <div id="queue-bar">
+                    ⏳ File d'attente : <span id="queue-count">0</span>
+                </div>
+                
+                <div class="flex justify-between items-center mb-1 border-b pb-1">
+                    <span class="font-bold text-gray-700 text-sm">
+                        Joueurs (<span id="player-count-display">0/20</span>)
+                    </span>
+                    <button onclick="resetRegistrations()" class="text-xs text-red-500 hover:underline">
+                        Vider
+                    </button>
+                </div>
+                
+                <div id="player-list" class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <div class="text-gray-400 italic text-center col-span-full text-xs mt-4" id="empty-msg">
+                        Aucun joueur...
+                    </div>
+                </div>
+                
+                <button onclick="startTestGame()" class="w-full btn bg-purple-500 hover:bg-purple-600 text-white py-2 mb-2 font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                    🤖 Remplir avec Bots
+                </button>
+                
+                <button id="btn-launch-game" onclick="forceStart()" disabled class="w-full btn btn-start py-3 text-lg transition-all duration-300 opacity-50 shadow-lg mb-4">
+                    Lancer (Auto à 20) ⏳
+                </button>
+
+                <div class="path-section">
+                    <h3 class="text-xs text-emerald-600 mb-2 uppercase tracking-wide">🛤️ Chemin des Bulles</h3>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Épaisseur ligne</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustPathWidth(-2)" class="control-button">-</button>
+                            <span id="path-width-display" class="text-xs w-10 text-center leading-6 font-mono font-bold">40px</span>
+                            <button onclick="adjustPathWidth(2)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Couleur ligne</span>
+                        <div class="flex gap-1">
+                            <input type="color" id="path-color-input" value="#e2e8f0" onchange="changePathColor()" class="color-preview">
+                            <button onclick="resetPathColor()" class="control-button text-xs">R</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Marges</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustPathPadding(-5)" class="control-button">-</button>
+                            <span id="path-padding-display" class="text-xs w-10 text-center leading-6 font-mono">40px</span>
+                            <button onclick="adjustPathPadding(5)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Courbure</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustPathCurve(-5)" class="control-button">-</button>
+                            <span id="path-curve-display" class="text-xs w-10 text-center leading-6 font-mono">0px</span>
+                            <button onclick="adjustPathCurve(5)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Effet 3D</span>
+                        <div class="flex gap-1">
+                            <button onclick="togglePath3D()" class="control-button text-xs" id="btn-3d">OFF</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Afficher tracé</span>
+                        <div class="flex gap-1">
+                            <button onclick="togglePathVisibility()" class="control-button text-xs" id="btn-show-path">ON</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 text-center">
+                        <button onclick="togglePathEditMode()" id="btn-edit-path" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1 rounded-full border border-emerald-300 transition-colors">
+                            ✏️ Éditer le chemin
+                        </button>
+                        <button onclick="resetPathSettings()" class="text-xs text-gray-400 hover:text-red-500 underline ml-2">
+                            Réinitialiser
+                        </button>
+                    </div>
+                </div>
+
+                <div class="background-section mt-4">
+                    <h3 class="text-xs text-amber-600 mb-2 uppercase tracking-wide">🏞️ Fond d'écran</h3>
+                    <input type="text" id="background-url-input" class="w-full text-xs border border-amber-200 rounded p-1 mb-2" placeholder="URL Image de fond...">
+                    
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="loadBackgroundFromUrl()" class="flex-1 bg-amber-500 text-white text-xs py-1 rounded hover:bg-amber-600">
+                            URL
+                        </button>
+                        <label class="flex-1 bg-gray-500 text-white text-xs py-1 rounded hover:bg-gray-600 text-center cursor-pointer">
+                            Fichier
+                            <input type="file" class="hidden" accept="image/*" onchange="loadBackgroundFromFile(this)">
+                        </label>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Opacité</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustBackgroundOpacity(-0.1)" class="control-button">-</button>
+                            <span id="bg-opacity-display" class="text-xs w-8 text-center leading-6 font-mono">0.7</span>
+                            <button onclick="adjustBackgroundOpacity(0.1)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Flou</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustBackgroundBlur(-1)" class="control-button">-</button>
+                            <span id="bg-blur-display" class="text-xs w-8 text-center leading-6 font-mono">0px</span>
+                            <button onclick="adjustBackgroundBlur(1)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-1 mt-1">
+                        <button onclick="fitBackgroundImage()" class="flex-1 text-[10px] bg-amber-100 hover:bg-amber-200 rounded text-amber-600 py-1">
+                            Ajuster
+                        </button>
+                        <button onclick="clearBackground()" class="flex-1 text-[10px] text-gray-400 hover:text-red-500 underline text-center py-1">
+                            Supprimer
+                        </button>
+                    </div>
+                </div>
+
+                <div class="custom-track-section mt-4">
+                    <h3 class="text-xs text-indigo-600 mb-2 uppercase tracking-wide">🎨 Piste</h3>
+                    <input type="text" id="track-url-input" class="w-full text-xs border border-indigo-200 rounded p-1 mb-2" placeholder="URL Image...">
+                    
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="loadTrackFromUrl()" class="flex-1 bg-indigo-500 text-white text-xs py-1 rounded hover:bg-indigo-600">
+                            URL
+                        </button>
+                        <label class="flex-1 bg-gray-500 text-white text-xs py-1 rounded hover:bg-gray-600 text-center cursor-pointer">
+                            Fichier
+                            <input type="file" class="hidden" accept="image/*" onchange="loadTrackFromFile(this)">
+                        </label>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Zoom</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustTrackScale(-0.1)" class="control-button">-</button>
+                            <span id="scale-display" class="text-xs w-8 text-center leading-6 font-mono">1.0</span>
+                            <button onclick="adjustTrackScale(0.1)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Largeur</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustTrackWidth(-5)" class="control-button">-</button>
+                            <span id="width-display" class="text-xs w-10 text-center leading-6 font-mono">90%</span>
+                            <button onclick="adjustTrackWidth(5)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Hauteur</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustTrackHeight(-5)" class="control-button">-</button>
+                            <span id="height-display" class="text-xs w-10 text-center leading-6 font-mono">90%</span>
+                            <button onclick="adjustTrackHeight(5)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Décalage Y</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustOffsetY(-10)" class="control-button">⬆</button>
+                            <span id="offset-display" class="text-xs w-10 text-center leading-6 font-mono">115</span>
+                            <button onclick="adjustOffsetY(10)" class="control-button">⬇</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Lignes</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustRows(-1)" class="control-button">-</button>
+                            <span id="rows-display" class="text-xs w-8 text-center leading-6 font-mono font-bold text-green-600">5</span>
+                            <button onclick="adjustRows(1)" class="control-button">+</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-row" style="justify-content: center; background: none;">
+                        <button onclick="toggleDebug()" id="btn-debug" class="text-[10px] bg-white border border-gray-300 px-3 py-1 rounded-full text-gray-500 hover:text-indigo-600 hover:border-indigo-400 transition-colors">
+                            👁️ Tracé
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-1 mt-1">
+                        <button onclick="fitTrackImage()" class="flex-1 text-[10px] bg-indigo-100 hover:bg-indigo-200 rounded text-indigo-600 py-1">
+                            Ajuster Image
+                        </button>
+                        <button onclick="resetTrackSize()" class="flex-1 text-[10px] bg-gray-200 hover:bg-gray-300 rounded text-gray-600 py-1">
+                            Taille Écran
+                        </button>
+                        <button onclick="clearTrackImage()" class="flex-1 text-[10px] text-gray-400 hover:text-red-500 underline text-center py-1">
+                            Supprimer
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 border-t border-gray-200 pt-3">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1">
+                        🏆 Historique 
+                        <span id="history-count" class="bg-gray-200 text-gray-600 px-1 rounded text-[10px]">0</span>
+                    </h3>
+                    <div id="history-list" class="space-y-1 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded-lg border border-gray-100 min-h-[50px]">
+                        <div class="text-gray-400 italic text-center text-xs pt-2">
+                            Aucune victoire...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="winner-overlay">
+            <h1 class="text-6xl text-yellow-400 mb-8 drop-shadow-lg animate-bounce">
+                🏆 VICTOIRE ! 🏆
+            </h1>
+            <div class="bg-white/10 p-8 rounded-3xl border border-white/20 backdrop-blur-md text-center shadow-2xl">
+                <div class="text-2xl mb-2 text-gray-200 font-bold">
+                    Le grand champion est
+                </div>
+                <div id="winner-name" class="player-tag text-5xl mb-6 transform rotate-2">
+                    Joueur X
+                </div>
+                <div class="flex gap-4 justify-center mt-6">
+                    <button id="btn-next-race" class="btn btn-reset px-8 py-3 text-xl shadow-lg hover:scale-105" onclick="resetGame()">
+                        Prochaine Course (10s)
+                    </button>
+                </div>
+            </div>
+            <div class="mt-8 bg-white/95 text-black p-4 rounded-xl max-h-48 overflow-y-auto w-80 shadow-2xl">
+                <h3 class="text-center border-b border-gray-300 pb-2 mb-2 font-bold text-gray-700">
+                    Classement Final
+                </h3>
+                <table class="w-full text-left text-sm" id="final-results-table"></table>
+            </div>
+        </div>
+        
+        <div id="leaderboard">
+            <h3 class="font-bold border-b mb-2 pb-1 text-center text-green-700">
+                Course en cours
+            </h3>
+            <div id="leader-list"></div>
+        </div>
+        
+        <canvas id="raceCanvas"></canvas>
+    </div>
+    
+    <div id="save-indicator" class="save-indicator">
+        💾 Sauvegarde auto
+    </div>
+
+    <script>
+        // Configuration du jeu
+        const MAX_PLAYERS = 20;
+        const SERVER_PORT = 8832;
+        const SERVER_WS_URL = `ws://localhost:${SERVER_PORT}`;
+        const COLORS = [
+            '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', 
+            '#22C55E', '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', 
+            '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7', '#D946EF', 
+            '#EC4899', '#F43F5E', '#334155', '#475569', '#000000'
+        ];
+        
+        // Clé pour la sauvegarde locale
+        const STORAGE_KEY = 'snake_race_settings';
+
+        // Variables globales
+        const canvas = document.getElementById('raceCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let registeredNames = [];
+        let waitingQueue = [];
+        let winnersHistory = [];
+        let players = [];
+        let isRacing = false;
+        let animationId = null;
+        let winner = null;
+        let socket = null;
+        
+        // Variables pour la piste
+        let trackImage = null;
+        let trackScale = 1.0;
+        let trackX = 0;
+        let trackY = 0;
+        let trackWidthPercent = 90;
+        let trackHeightPercent = 90;
+        let useCustomSize = false;
+        let globalBallOffsetY = 115;
+        let trackRows = 5;
+        let showDebugPath = false;
+        
+        // Variables pour le fond d'écran
+        let backgroundImage = null;
+        let backgroundOpacity = 0.7;
+        let backgroundBlur = 0;
+        let backgroundScale = 1.0;
+        let backgroundX = 0;
+        let backgroundY = 0;
+
+        // Variables pour le chemin des bulles
+        let pathWidth = 40;
+        let pathColor = '#e2e8f0';
+        let pathPadding = 40;
+        let pathCurve = 0;
+        let path3DEnabled = false;
+        let pathEditMode = false;
+        let pathNodes = [];
+        let draggingNode = null;
+        let showPath = true; // Nouvelle variable pour afficher/cacher le tracé
+
+        // Variables de drag
+        let isDraggingTrack = false;
+        let isDraggingBackground = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let dragMode = 'track';
+        
+        let isDraggingPanel = false;
+        let startX = 0;
+        let startY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+        
+        let autoRestartInterval = null;
+        let autoSaveTimeout = null;
+
+        // Initialisation
+        function init() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Setup drag pour le panel
+            const dragHandle = document.getElementById('panel-header-drag');
+            dragHandle.addEventListener('mousedown', startPanelDrag);
+            
+            // Setup drag pour la piste, fond et chemin
+            canvas.addEventListener('mousedown', startDrag);
+            window.addEventListener('mousemove', handleDrag);
+            window.addEventListener('mouseup', stopDrag);
+            
+            // Initialiser les affichages
+            document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
+            document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
+            document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
+            document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
+            document.getElementById('path-width-display').innerText = `${pathWidth}px`;
+            document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
+            document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
+            
+            // Initialiser les nœuds du chemin
+            generateDefaultPath();
+            
+            // Charger les paramètres sauvegardés
+            loadSettings();
+            
+            // Dessiner la scène initiale
+            draw();
+            
+            // Tester la connexion au serveur
+            setTimeout(testServerConnection, 1000);
+        }
+
+        // Sauvegarde automatique
+        function saveSettings() {
+            const settings = {
+                // Paramètres du chemin
+                pathWidth,
+                pathColor,
+                pathPadding,
+                pathCurve,
+                path3DEnabled,
+                showPath,
+                pathNodes,
+                
+                // Paramètres de la piste
+                trackScale,
+                trackX,
+                trackY,
+                trackWidthPercent,
+                trackHeightPercent,
+                globalBallOffsetY,
+                trackRows,
+                showDebugPath,
+                
+                // Paramètres du fond
+                backgroundOpacity,
+                backgroundBlur,
+                backgroundScale,
+                backgroundX,
+                backgroundY,
+                
+                // Données de l'interface
+                registeredNames,
+                winnersHistory,
+                
+                // URL des images (si possible)
+                trackUrl: document.getElementById('track-url-input').value,
+                backgroundUrl: document.getElementById('background-url-input').value
+            };
+            
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+                showSaveIndicator();
+                console.log("✅ Paramètres sauvegardés");
+            } catch (e) {
+                console.error("❌ Erreur lors de la sauvegarde:", e);
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!saved) return;
+                
+                const settings = JSON.parse(saved);
+                
+                // Restaurer les paramètres du chemin
+                if (settings.pathWidth !== undefined) {
+                    pathWidth = settings.pathWidth;
+                    document.getElementById('path-width-display').innerText = `${pathWidth}px`;
+                }
+                if (settings.pathColor) {
+                    pathColor = settings.pathColor;
+                    document.getElementById('path-color-input').value = pathColor;
+                }
+                if (settings.pathPadding !== undefined) {
+                    pathPadding = settings.pathPadding;
+                    document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
+                }
+                if (settings.pathCurve !== undefined) {
+                    pathCurve = settings.pathCurve;
+                    document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
+                }
+                if (settings.path3DEnabled !== undefined) {
+                    path3DEnabled = settings.path3DEnabled;
+                    const btn3d = document.getElementById('btn-3d');
+                    btn3d.innerText = path3DEnabled ? 'ON' : 'OFF';
+                    btn3d.style.background = path3DEnabled ? '#22c55e' : '#f3f4f6';
+                    btn3d.style.color = path3DEnabled ? 'white' : '#6b7280';
+                }
+                if (settings.showPath !== undefined) {
+                    showPath = settings.showPath;
+                    const btnShowPath = document.getElementById('btn-show-path');
+                    btnShowPath.innerText = showPath ? 'ON' : 'OFF';
+                    btnShowPath.style.background = showPath ? '#22c55e' : '#f3f4f6';
+                    btnShowPath.style.color = showPath ? 'white' : '#6b7280';
+                }
+                if (settings.pathNodes && settings.pathNodes.length > 0) {
+                    pathNodes = settings.pathNodes;
+                }
+                
+                // Restaurer les paramètres de la piste
+                if (settings.trackScale !== undefined) {
+                    trackScale = settings.trackScale;
+                    document.getElementById('scale-display').innerText = trackScale.toFixed(2);
+                }
+                if (settings.trackX !== undefined) trackX = settings.trackX;
+                if (settings.trackY !== undefined) trackY = settings.trackY;
+                if (settings.trackWidthPercent !== undefined) {
+                    trackWidthPercent = settings.trackWidthPercent;
+                    document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
+                }
+                if (settings.trackHeightPercent !== undefined) {
+                    trackHeightPercent = settings.trackHeightPercent;
+                    document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
+                }
+                if (settings.globalBallOffsetY !== undefined) {
+                    globalBallOffsetY = settings.globalBallOffsetY;
+                    document.getElementById('offset-display').innerText = globalBallOffsetY;
+                }
+                if (settings.trackRows !== undefined) {
+                    trackRows = settings.trackRows;
+                    document.getElementById('rows-display').innerText = trackRows;
+                }
+                if (settings.showDebugPath !== undefined) {
+                    showDebugPath = settings.showDebugPath;
+                    const btnDebug = document.getElementById('btn-debug');
+                    btnDebug.innerText = showDebugPath ? "👁️ On" : "👁️ Off";
+                    if (showDebugPath) {
+                        btnDebug.classList.add('text-indigo-600');
+                        btnDebug.style.borderColor = '#6366f1';
+                    }
+                }
+                
+                // Restaurer les paramètres du fond
+                if (settings.backgroundOpacity !== undefined) {
+                    backgroundOpacity = settings.backgroundOpacity;
+                    document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
+                }
+                if (settings.backgroundBlur !== undefined) {
+                    backgroundBlur = settings.backgroundBlur;
+                    document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
+                }
+                if (settings.backgroundX !== undefined) backgroundX = settings.backgroundX;
+                if (settings.backgroundY !== undefined) backgroundY = settings.backgroundY;
+                
+                // Restaurer les données
+                if (settings.registeredNames) registeredNames = settings.registeredNames;
+                if (settings.winnersHistory) winnersHistory = settings.winnersHistory;
+                
+                // Restaurer les URLs
+                if (settings.trackUrl) document.getElementById('track-url-input').value = settings.trackUrl;
+                if (settings.backgroundUrl) document.getElementById('background-url-input').value = settings.backgroundUrl;
+                
+                // Mettre à jour l'interface
+                renderPlayerList();
+                updateHistoryDisplay();
+                
+                console.log("✅ Paramètres chargés");
+            } catch (e) {
+                console.error("❌ Erreur lors du chargement:", e);
+            }
+        }
+
+        function autoSave() {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+            }
+            
+            autoSaveTimeout = setTimeout(() => {
+                saveSettings();
+            }, 1000); // Sauvegarde après 1 seconde d'inactivité
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.style.display = 'block';
+            
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 2000);
+        }
+
+        // Fonctions pour le chemin des bulles
+        function generateDefaultPath() {
+            pathNodes = [];
+            const width = canvas.width;
+            const height = canvas.height;
+            const effectiveHeight = height - pathPadding * 2;
+            const rowHeight = effectiveHeight / (trackRows - 1);
+            
+            for (let row = 0; row < trackRows; row++) {
+                let y = pathPadding + row * rowHeight + globalBallOffsetY;
+                
+                if (row % 2 === 0) {
+                    // Gauche vers droite
+                    pathNodes.push({ x: pathPadding, y: y });
+                    pathNodes.push({ x: width - pathPadding, y: y });
+                } else {
+                    // Droite vers gauche
+                    pathNodes.push({ x: width - pathPadding, y: y });
+                    pathNodes.push({ x: pathPadding, y: y });
+                }
+            }
+            
+            autoSave();
+        }
+
+        function adjustPathWidth(delta) {
+            pathWidth = Math.max(2, Math.min(100, pathWidth + delta));
+            document.getElementById('path-width-display').innerText = `${pathWidth}px`;
+            draw();
+            autoSave();
+        }
+
+        function changePathColor() {
+            pathColor = document.getElementById('path-color-input').value;
+            draw();
+            autoSave();
+        }
+
+        function resetPathColor() {
+            pathColor = '#e2e8f0';
+            document.getElementById('path-color-input').value = pathColor;
+            draw();
+            autoSave();
+        }
+
+        function adjustPathPadding(delta) {
+            pathPadding = Math.max(10, Math.min(200, pathPadding + delta));
+            document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
+            generateDefaultPath();
+            draw();
+            autoSave();
+        }
+
+        function adjustPathCurve(delta) {
+            pathCurve = Math.max(0, Math.min(50, pathCurve + delta));
+            document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
+            draw();
+            autoSave();
+        }
+
+        function togglePath3D() {
+            path3DEnabled = !path3DEnabled;
+            const btn = document.getElementById('btn-3d');
+            btn.innerText = path3DEnabled ? 'ON' : 'OFF';
+            btn.style.background = path3DEnabled ? '#22c55e' : '#f3f4f6';
+            btn.style.color = path3DEnabled ? 'white' : '#6b7280';
+            draw();
+            autoSave();
+        }
+
+        function togglePathVisibility() {
+            showPath = !showPath;
+            const btn = document.getElementById('btn-show-path');
+            btn.innerText = showPath ? 'ON' : 'OFF';
+            btn.style.background = showPath ? '#22c55e' : '#f3f4f6';
+            btn.style.color = showPath ? 'white' : '#6b7280';
+            draw();
+            autoSave();
+        }
+
+        function togglePathEditMode() {
+            pathEditMode = !pathEditMode;
+            const btn = document.getElementById('btn-edit-path');
+            
+            if (pathEditMode) {
+                btn.innerText = "💾 Sauvegarder chemin";
+                btn.style.background = '#dc2626';
+                btn.style.color = 'white';
+                showPathNodes();
+            } else {
+                btn.innerText = "✏️ Éditer le chemin";
+                btn.style.background = '#bbf7d0';
+                btn.style.color = '#065f46';
+                hidePathNodes();
+                autoSave(); // Sauvegarder après édition
+            }
+            
+            draw();
+        }
+
+        function showPathNodes() {
+            hidePathNodes();
+            
+            pathNodes.forEach((node, index) => {
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'path-node';
+                nodeEl.style.left = (node.x - 8) + 'px';
+                nodeEl.style.top = (node.y - 8) + 'px';
+                nodeEl.dataset.index = index;
+                nodeEl.addEventListener('mousedown', startNodeDrag);
+                document.getElementById('game-container').appendChild(nodeEl);
+            });
+        }
+
+        function hidePathNodes() {
+            document.querySelectorAll('.path-node').forEach(node => node.remove());
+        }
+
+        function startNodeDrag(e) {
+            draggingNode = parseInt(e.target.dataset.index);
+            e.preventDefault();
+        }
+
+        function resetPathSettings() {
+            pathWidth = 40;
+            pathColor = '#e2e8f0';
+            pathPadding = 40;
+            pathCurve = 0;
+            path3DEnabled = false;
+            showPath = true;
+            
+            document.getElementById('path-width-display').innerText = `${pathWidth}px`;
+            document.getElementById('path-color-input').value = pathColor;
+            document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
+            document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
+            
+            const btn3d = document.getElementById('btn-3d');
+            btn3d.innerText = 'OFF';
+            btn3d.style.background = '#f3f4f6';
+            btn3d.style.color = '#6b7280';
+            
+            const btnShowPath = document.getElementById('btn-show-path');
+            btnShowPath.innerText = 'ON';
+            btnShowPath.style.background = '#22c55e';
+            btnShowPath.style.color = 'white';
+            
+            generateDefaultPath();
+            draw();
+            autoSave();
+        }
+
+        // Dessin du chemin
+        function drawPath() {
+            if (!showPath || pathNodes.length < 2) return;
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = pathWidth;
+            
+            if (path3DEnabled) {
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                for (let i = 0; i < pathNodes.length - 1; i++) {
+                    const p1 = pathNodes[i];
+                    const p2 = pathNodes[i + 1];
+                    
+                    if (i === 0) ctx.moveTo(p1.x, p1.y + 2);
+                    ctx.lineTo(p2.x, p2.y + 2);
+                }
+                ctx.stroke();
+                
+                ctx.strokeStyle = pathColor;
+                ctx.beginPath();
+                for (let i = 0; i < pathNodes.length - 1; i++) {
+                    const p1 = pathNodes[i];
+                    const p2 = pathNodes[i + 1];
+                    
+                    if (i === 0) ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                }
+                ctx.stroke();
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = pathWidth / 4;
+                ctx.beginPath();
+                for (let i = 0; i < pathNodes.length - 1; i++) {
+                    const p1 = pathNodes[i];
+                    const p2 = pathNodes[i + 1];
+                    
+                    if (i === 0) ctx.moveTo(p1.x, p1.y - 1);
+                    ctx.lineTo(p2.x, p2.y - 1);
+                }
+                ctx.stroke();
+            } else {
+                ctx.strokeStyle = pathColor;
+                ctx.beginPath();
+                for (let i = 0; i < pathNodes.length - 1; i++) {
+                    const p1 = pathNodes[i];
+                    const p2 = pathNodes[i + 1];
+                    
+                    if (i === 0) {
+                        ctx.moveTo(p1.x, p1.y);
+                    }
+                    
+                    if (pathCurve > 0 && i % 2 === 0) {
+                        const cp1x = p1.x + pathCurve;
+                        const cp1y = p1.y;
+                        const cp2x = p2.x - pathCurve;
+                        const cp2y = p2.y;
+                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+                    } else {
+                        ctx.lineTo(p2.x, p2.y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            if (pathNodes.length >= 2) {
+                const lastNode = pathNodes[pathNodes.length - 1];
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(lastNode.x, lastNode.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("FIN", lastNode.x, lastNode.y);
+            }
+        }
+
+        // Fonctions pour le fond d'écran
+        function loadBackgroundFromUrl() {
+            const url = document.getElementById('background-url-input').value.trim();
+            if (!url) return;
+            
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = function() {
+                backgroundImage = img;
+                fitBackgroundImage();
+                alert("✅ Fond d'écran chargé !");
+                autoSave();
+            };
+            img.onerror = function() {
+                alert("❌ Erreur de chargement de l'image de fond");
+            };
+            img.src = url;
+        }
+
+        function loadBackgroundFromFile(input) {
+            if (!input.files[0]) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    backgroundImage = img;
+                    fitBackgroundImage();
+                    autoSave();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        function fitBackgroundImage() {
+            if (!backgroundImage) return;
+            
+            const ratioW = canvas.width / backgroundImage.width;
+            const ratioH = canvas.height / backgroundImage.height;
+            backgroundScale = Math.max(ratioW, ratioH);
+            
+            backgroundX = (canvas.width - backgroundImage.width * backgroundScale) / 2;
+            backgroundY = (canvas.height - backgroundImage.height * backgroundScale) / 2;
+            
+            draw();
+            autoSave();
+        }
+
+        function adjustBackgroundOpacity(delta) {
+            backgroundOpacity = Math.max(0.1, Math.min(1.0, backgroundOpacity + delta));
+            document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
+            draw();
+            autoSave();
+        }
+
+        function adjustBackgroundBlur(delta) {
+            backgroundBlur = Math.max(0, Math.min(20, backgroundBlur + delta));
+            document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
+            draw();
+            autoSave();
+        }
+
+        function clearBackground() {
+            backgroundImage = null;
+            backgroundOpacity = 0.7;
+            backgroundBlur = 0;
+            document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
+            document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
+            draw();
+            autoSave();
+        }
+
+        // Fonctions pour la piste
+        function loadTrackFromUrl() {
+            const url = document.getElementById('track-url-input').value.trim();
+            if (!url) return;
+            
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = function() {
+                trackImage = img;
+                fitTrackImage();
+                alert("✅ Piste chargée !");
+                autoSave();
+            };
+            img.onerror = function() {
+                alert("❌ Erreur de chargement de l'image");
+            };
+            img.src = url;
+        }
+
+        function loadTrackFromFile(input) {
+            if (!input.files[0]) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    trackImage = img;
+                    fitTrackImage();
+                    autoSave();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        function fitTrackImage() {
+            if (!trackImage) return;
+            
+            const ratioW = canvas.width / trackImage.width;
+            const ratioH = canvas.height / trackImage.height;
+            trackScale = Math.min(ratioW, ratioH) * 0.95;
+            
+            trackX = (canvas.width - trackImage.width * trackScale) / 2;
+            trackY = (canvas.height - trackImage.height * trackScale) / 2;
+            
+            useCustomSize = false;
+            trackWidthPercent = 90;
+            trackHeightPercent = 90;
+            
+            document.getElementById('scale-display').innerText = trackScale.toFixed(2);
+            document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
+            document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
+            draw();
+            autoSave();
+        }
+
+        function adjustTrackScale(delta) {
+            if (!trackImage) return;
+            
+            trackScale = Math.max(0.1, trackScale + delta);
+            document.getElementById('scale-display').innerText = trackScale.toFixed(2);
+            draw();
+            autoSave();
+        }
+
+        function adjustTrackWidth(delta) {
+            trackWidthPercent = Math.max(20, Math.min(200, trackWidthPercent + delta));
+            document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
+            useCustomSize = true;
+            draw();
+            autoSave();
+        }
+
+        function adjustTrackHeight(delta) {
+            trackHeightPercent = Math.max(20, Math.min(200, trackHeightPercent + delta));
+            document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
+            useCustomSize = true;
+            draw();
+            autoSave();
+        }
+
+        function resetTrackSize() {
+            useCustomSize = false;
+            trackWidthPercent = 90;
+            trackHeightPercent = 90;
+            trackX = 0;
+            trackY = 0;
+            
+            document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
+            document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
+            draw();
+            autoSave();
+        }
+
+        function adjustOffsetY(delta) {
+            globalBallOffsetY += delta;
+            document.getElementById('offset-display').innerText = globalBallOffsetY;
+            generateDefaultPath();
+            draw();
+            autoSave();
+        }
+
+        function adjustRows(delta) {
+            trackRows = Math.max(2, Math.min(10, trackRows + delta));
+            document.getElementById('rows-display').innerText = trackRows;
+            generateDefaultPath();
+            draw();
+            autoSave();
+        }
+
+        function clearTrackImage() {
+            trackImage = null;
+            draw();
+            autoSave();
+        }
+
+        function toggleDebug() {
+            showDebugPath = !showDebugPath;
+            const btn = document.getElementById('btn-debug');
+            
+            if (showDebugPath) {
+                btn.innerText = "👁️ On";
+                btn.classList.add('text-indigo-600');
+                btn.style.borderColor = '#6366f1';
+            } else {
+                btn.innerText = "👁️ Off";
+                btn.classList.remove('text-indigo-600');
+                btn.style.borderColor = '';
+            }
+            
+            draw();
+            autoSave();
+        }
+
+        // Gestion du drag
+        function startDrag(e) {
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            
+            if (pathEditMode && draggingNode !== null) {
+                dragMode = 'path';
+                return;
+            }
+            
+            if (backgroundImage) {
+                dragMode = 'background';
+                isDraggingBackground = true;
+            } else if (trackImage) {
+                dragMode = 'track';
+                isDraggingTrack = true;
+            }
+            
+            canvas.classList.add('dragging');
+        }
+
+        function handleDrag(e) {
+            const deltaX = e.clientX - lastMouseX;
+            const deltaY = e.clientY - lastMouseY;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            
+            if (dragMode === 'path' && draggingNode !== null) {
+                pathNodes[draggingNode].x += deltaX;
+                pathNodes[draggingNode].y += deltaY;
+                
+                const nodeEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
+                if (nodeEl) {
+                    nodeEl.style.left = (pathNodes[draggingNode].x - 8) + 'px';
+                    nodeEl.style.top = (pathNodes[draggingNode].y - 8) + 'px';
+                }
+            } else if (isDraggingBackground && dragMode === 'background') {
+                backgroundX += deltaX;
+                backgroundY += deltaY;
+            } else if (isDraggingTrack && dragMode === 'track') {
+                trackX += deltaX;
+                trackY += deltaY;
+            }
+            
+            if (isDraggingBackground || isDraggingTrack || dragMode === 'path') {
+                draw();
+            }
+        }
+
+        function stopDrag() {
+            isDraggingTrack = false;
+            isDraggingBackground = false;
+            if (dragMode === 'path') {
+                draggingNode = null;
+                autoSave(); // Sauvegarder après déplacement des nœuds
+            }
+            canvas.classList.remove('dragging');
+        }
+
+        // Dessin
+        function drawBackground() {
+            if (!backgroundImage) return;
+            
+            ctx.save();
+            
+            if (backgroundBlur > 0) {
+                ctx.filter = `blur(${backgroundBlur}px)`;
+            }
+            
+            const imgWidth = backgroundImage.width * backgroundScale;
+            const imgHeight = backgroundImage.height * backgroundScale;
+            
+            ctx.globalAlpha = backgroundOpacity;
+            ctx.drawImage(backgroundImage, backgroundX, backgroundY, imgWidth, imgHeight);
+            
+            ctx.restore();
+        }
+
+        function drawTrack() {
+            let drawWidth, drawHeight, drawX, drawY;
+            
+            if (trackImage) {
+                if (useCustomSize) {
+                    drawWidth = (canvas.width * trackWidthPercent) / 100;
+                    drawHeight = (canvas.height * trackHeightPercent) / 100;
+                    drawX = (canvas.width - drawWidth) / 2 + trackX;
+                    drawY = (canvas.height - drawHeight) / 2 + trackY;
+                    
+                    ctx.drawImage(trackImage, drawX, drawY, drawWidth, drawHeight);
+                } else {
+                    const imgWidth = trackImage.width * trackScale;
+                    const imgHeight = trackImage.height * trackScale;
+                    drawWidth = imgWidth;
+                    drawHeight = imgHeight;
+                    drawX = trackX;
+                    drawY = trackY;
+                    
+                    ctx.drawImage(trackImage, drawX, drawY, drawWidth, drawHeight);
+                }
+            }
+            
+            drawPath();
+        }
+
+        // Calcul de position sur le chemin
+        function getPositionOnPath(progress) {
+            if (pathNodes.length < 2) return { x: 0, y: 0 };
+            
+            const totalLength = calculatePathLength();
+            const targetDistance = progress * totalLength;
+            
+            let accumulatedLength = 0;
+            for (let i = 0; i < pathNodes.length - 1; i++) {
+                const p1 = pathNodes[i];
+                const p2 = pathNodes[i + 1];
+                const segmentLength = Math.sqrt(
+                    Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)
+                );
+                
+                if (accumulatedLength + segmentLength >= targetDistance) {
+                    const segmentProgress = (targetDistance - accumulatedLength) / segmentLength;
+                    return {
+                        x: p1.x + (p2.x - p1.x) * segmentProgress,
+                        y: p1.y + (p2.y - p1.y) * segmentProgress
+                    };
+                }
+                accumulatedLength += segmentLength;
+            }
+            
+            return pathNodes[pathNodes.length - 1];
+        }
+
+        function calculatePathLength() {
+            let length = 0;
+            for (let i = 0; i < pathNodes.length - 1; i++) {
+                const p1 = pathNodes[i];
+                const p2 = pathNodes[i + 1];
+                length += Math.sqrt(
+                    Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)
+                );
+            }
+            return length;
+        }
+
+        // Dessin des joueurs
+        function drawPlayers() {
+            if (players.length === 0) return;
+            
+            players.forEach(player => {
+                if (player.isFinished) return;
+                
+                const pos = getPositionOnPath(player.progress);
+                
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y + 3, 8, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = player.color;
+                ctx.fill();
+                
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#1f2937';
+                ctx.font = 'bold 12px Nunito';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(player.name, pos.x, pos.y - 12);
+            });
+        }
+
+        // Dessin principal
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawBackground();
+            drawTrack();
+            drawPlayers();
+        }
+
+        // Fonctions de connexion au serveur
+        function testServerConnection() {
+            console.log("Test de connexion au serveur...");
+            
+            fetch(`http://localhost:${SERVER_PORT}/api/status`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("✅ Serveur disponible:", data);
+                    document.getElementById('socket-text').innerText = 'PRÊT';
+                    document.getElementById('socket-dot').className = 'status-indicator status-on';
+                })
+                .catch(error => {
+                    console.warn("⚠️ Serveur non disponible:", error.message);
+                    document.getElementById('socket-text').innerText = 'HORS LIGNE';
+                });
+        }
+
+        function connectToServer() {
+            const btn = document.getElementById('btn-connect');
+            const statusDot = document.getElementById('socket-dot');
+            const statusText = document.getElementById('socket-text');
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                alert("Déjà connecté au serveur !");
+                return;
+            }
+            
+            btn.innerText = "Connexion...";
+            btn.disabled = true;
+            
+            try {
+                socket = new WebSocket(SERVER_WS_URL);
+                
+                socket.onopen = function() {
+                    console.log("✅ Connecté au serveur WebSocket !");
+                    statusText.innerText = 'CONNECTÉ';
+                    statusDot.className = 'status-indicator status-on';
+                    btn.innerText = "✅ Connecté !";
+                    btn.disabled = true;
+                    
+                    socket.send(JSON.stringify({
+                        type: 'CLIENT_CONNECTED',
+                        message: 'Client web connecté',
+                        timestamp: new Date().toISOString()
+                    }));
+                };
+                
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log("📨 Message serveur:", data);
+                        handleServerMessage(data);
+                    } catch (error) {
+                        console.error("❌ Erreur parsing message:", error);
+                    }
+                };
+                
+                socket.onclose = function() {
+                    console.log("❌ Déconnecté du serveur");
+                    statusText.innerText = 'DÉCONNECTÉ';
+                    statusDot.className = 'status-indicator status-off';
+                    btn.innerText = "📡 Reconnecter";
+                    btn.disabled = false;
+                    socket = null;
+                };
+                
+                socket.onerror = function(error) {
+                    console.error("❌ Erreur WebSocket:", error);
+                    statusText.innerText = 'ERREUR';
+                    statusDot.className = 'status-indicator status-off';
+                    btn.innerText = "❌ Erreur - Réessayer";
+                    btn.disabled = false;
+                };
+                
+            } catch (error) {
+                console.error("❌ Erreur création WebSocket:", error);
+                btn.innerText = "❌ Erreur";
+                btn.disabled = false;
+            }
+        }
+
+        // Gestion des messages du serveur
+        function handleServerMessage(data) {
+            switch(data.type) {
+                case 'SERVER_MESSAGE':
+                    console.log("Serveur:", data.message);
+                    break;
+                    
+                case 'TIKFINTY_ACTION':
+                    handleTikFinityAction(data);
+                    break;
+                    
+                case 'SNAKE_JOIN_SUCCESS':
+                    console.log("✅ Joueur ajouté:", data);
+                    updatePlayerCount(data.currentPlayers, data.maxPlayers);
+                    break;
+                    
+                case 'SNAKE_PLAYER_ADDED':
+                    console.log("➕ Nouveau joueur:", data.username);
+                    break;
+                    
+                case 'SNAKE_GAME_STARTING':
+                    console.log("🚀 Jeu démarré avec", data.players.length, "joueurs");
+                    startGame();
+                    break;
+                    
+                case 'SNAKE_UPDATE':
+                    updateGameState(data.players);
+                    break;
+                    
+                case 'SNAKE_PLAYER_FINISHED':
+                    console.log(`🏁 ${data.username} a terminé #${data.position}`);
+                    break;
+                    
+                case 'SNAKE_GAME_END':
+                    console.log("🎮 Jeu terminé ! Classement:", data.rankings);
+                    showFinalResults(data.rankings);
+                    break;
+                    
+                case 'SNAKE_GAME_RESET':
+                    console.log("🔄 Jeu réinitialisé");
+                    resetGame();
+                    break;
+                    
+                case 'PONG':
+                    break;
+                    
+                default:
+                    console.log("Message non géré:", data);
+            }
+        }
+
+        function handleTikFinityAction(data) {
+            const action = data.action;
+            if (action && action.game === 'snake') {
+                switch(action.type) {
+                    case 'join':
+                        if (action.username) {
+                            addPlayerToGame(action.username, true);
+                        }
+                        break;
+                    case 'start':
+                        forceStart();
+                        break;
+                    case 'reset':
+                        resetRegistrations();
+                        break;
+                }
+            }
+        }
+
+        // Mettre à jour l'état du jeu
+        function updateGameState(serverPlayers) {
+            if (!isRacing) return;
+            
+            serverPlayers.forEach(serverPlayer => {
+                const localPlayer = players.find(p => p.id === serverPlayer.id || p.name === serverPlayer.username);
+                if (localPlayer) {
+                    localPlayer.progress = serverPlayer.progress;
+                    localPlayer.isFinished = serverPlayer.isFinished;
+                }
+            });
+            
+            draw();
+        }
+
+        function updatePlayerCount(current, max) {
+            document.getElementById('player-count-display').innerText = `${current}/${max}`;
+        }
+
+        function joinSnakeGame(username) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert("Veuillez d'abord vous connecter au serveur !");
+                return false;
+            }
+            
+            const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            socket.send(JSON.stringify({
+                type: 'SNAKE_JOIN',
+                gameId: 'default',
+                username: username,
+                userId: userId
+            }));
+            
+            return true;
+        }
+
+        function startSnakeGame() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert("Non connecté au serveur !");
+                return false;
+            }
+            
+            socket.send(JSON.stringify({
+                type: 'SNAKE_START',
+                gameId: 'default'
+            }));
+            
+            return true;
+        }
+
+        function resetSnakeGame() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+            
+            socket.send(JSON.stringify({
+                type: 'SNAKE_RESET',
+                gameId: 'default'
+            }));
+            
+            return true;
+        }
+
+        // Ajouter un joueur
+        function addPlayerToGame(name, fromServer = false) {
+            if (isRacing) {
+                waitingQueue.push(name);
+                updateQueueDisplay();
+                return;
+            }
+            
+            if (registeredNames.length >= MAX_PLAYERS) {
+                waitingQueue.push(name);
+                updateQueueDisplay();
+                return;
+            }
+            
+            if (socket && socket.readyState === WebSocket.OPEN && !fromServer) {
+                const success = joinSnakeGame(name);
+                if (!success) return;
+            }
+            
+            registeredNames.push(name);
+            const player = new Player(players.length, name);
+            players.push(player);
+            
+            draw();
+            renderPlayerList();
+            checkAutoStart();
+            autoSave();
+        }
+
+        // Fonctions d'interface
+        function togglePanel() {
+            const panel = document.getElementById('setup-layer');
+            const restoreBtn = document.getElementById('restore-btn');
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'flex';
+                restoreBtn.classList.add('hidden');
+            } else {
+                panel.style.display = 'none';
+                restoreBtn.classList.remove('hidden');
+            }
+        }
+
+        function startPanelDrag(e) {
+            if (e.target.closest('button')) return;
+            
+            isDraggingPanel = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const setupLayer = document.getElementById('setup-layer');
+            startLeft = setupLayer.offsetLeft;
+            startTop = setupLayer.offsetTop;
+            
+            document.addEventListener('mousemove', onPanelDrag);
+            document.addEventListener('mouseup', stopPanelDrag);
+        }
+
+        function onPanelDrag(e) {
+            if (!isDraggingPanel) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            const setupLayer = document.getElementById('setup-layer');
+            
+            setupLayer.style.left = (startLeft + deltaX) + 'px';
+            setupLayer.style.top = (startTop + deltaY) + 'px';
+        }
+
+        function stopPanelDrag() {
+            isDraggingPanel = false;
+            document.removeEventListener('mousemove', onPanelDrag);
+            document.removeEventListener('mouseup', stopPanelDrag);
+        }
+
+        function addPlayerManual() {
+            const input = document.getElementById('player-input');
+            const name = input.value.trim();
+            
+            if (name) {
+                addPlayerToGame(name);
+                input.value = '';
+            }
+        }
+
+        function simulateJoin() {
+            const randomNum = Math.floor(Math.random() * 100);
+            addPlayerToGame(`Joueur-${randomNum}`);
+        }
+
+        function startTestGame() {
+            if (isRacing) return;
+            
+            const neededPlayers = MAX_PLAYERS - registeredNames.length;
+            if (neededPlayers <= 0) return;
+            
+            const count = Math.min(neededPlayers, 5);
+            for (let i = 0; i < count; i++) {
+                const botNum = Math.floor(Math.random() * 999);
+                addPlayerToGame(`Bot-${botNum}`);
+            }
+        }
+
+        function updateQueueDisplay() {
+            const queueBar = document.getElementById('queue-bar');
+            const queueCount = document.getElementById('queue-count');
+            
+            queueCount.innerText = waitingQueue.length;
+            queueBar.style.display = waitingQueue.length > 0 ? 'block' : 'none';
+        }
+
+        function renderPlayerList() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = '';
+            
+            if (registeredNames.length === 0) {
+                const emptyMsg = document.createElement('div');
+                emptyMsg.className = "text-gray-400 italic text-center col-span-full text-xs mt-4";
+                emptyMsg.id = "empty-msg";
+                emptyMsg.innerText = "Aucun joueur...";
+                list.appendChild(emptyMsg);
+            } else {
+                registeredNames.forEach((name, index) => {
+                    const badge = document.createElement('div');
+                    badge.className = 'name-badge border-l-4 shadow-sm';
+                    badge.style.borderColor = COLORS[index % COLORS.length];
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'truncate w-full';
+                    nameSpan.innerText = name;
+                    
+                    badge.appendChild(nameSpan);
+                    list.appendChild(badge);
+                });
+            }
+            
+            document.getElementById('player-count-display').innerText = `${registeredNames.length}/${MAX_PLAYERS}`;
+        }
+
+        function resetRegistrations() {
+            if (isRacing) return;
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                resetSnakeGame();
+            }
+            
+            registeredNames = [];
+            waitingQueue = [];
+            players = [];
+            
+            renderPlayerList();
+            updateQueueDisplay();
+            draw();
+            checkAutoStart();
+            autoSave();
+        }
+
+        function checkAutoStart() {
+            const btn = document.getElementById('btn-launch-game');
+            
+            if (registeredNames.length >= MAX_PLAYERS) {
+                btn.innerHTML = "🚀 AUTO !";
+                setTimeout(startGame, 1000);
+            } else if (registeredNames.length > 1) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btn.innerHTML = `Lancer (${registeredNames.length})`;
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+                btn.innerHTML = "Attente...";
+            }
+        }
+
+        function forceStart() {
+            if (registeredNames.length < 2) {
+                alert("Il faut au moins 2 joueurs !");
+                return;
+            }
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                startSnakeGame();
+            } else {
+                startGame();
+            }
+        }
+
+        // Classe Joueur
+        class Player {
+            constructor(id, name) {
+                this.id = id;
+                this.name = name;
+                this.color = COLORS[id % COLORS.length];
+                this.progress = 0;
+                this.speedBase = 0.0001 + Math.random() * 0.0001;
+                this.laneOffset = (id - (MAX_PLAYERS / 2)) * 2.5;
+                this.multiplier = 1;
+                this.effectEnd = 0;
+                this.isFinished = false;
+                this.finishTime = null;
+            }
+
+            update() {
+                if (this.progress < 1 && !this.isFinished) {
+                    if (Date.now() > this.effectEnd) {
+                        this.multiplier = 1;
+                    }
+                    
+                    this.progress += (this.speedBase + Math.random() * 0.0004) * this.multiplier;
+                    
+                    if (this.progress >= 1) {
+                        this.progress = 1;
+                        this.isFinished = true;
+                        this.finishTime = Date.now();
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        // Canvas et dessin
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            if (!container) return;
+            
+            canvas.width = container.clientWidth * 0.95;
+            canvas.height = container.clientHeight * 0.95;
+            
+            if (!isRacing && !winner) {
+                generateDefaultPath();
+                draw();
+            }
+        }
+
+        // Mise à jour du jeu
+        function update() {
+            if (!isRacing) return;
+            
+            let finishedCount = 0;
+            
+            players.forEach(player => {
+                if (player.update()) {
+                    finishedCount++;
+                }
+                
+                if (player.progress >= 1 && !winner) {
+                    winner = player;
+                }
+            });
+            
+            draw();
+            
+            if (Math.random() > 0.8) {
+                renderLeaderboard();
+            }
+            
+            if (winner && document.getElementById('winner-overlay').style.display === 'none') {
+                endGame(winner);
+            }
+            
+            if (finishedCount < players.length || document.getElementById('winner-overlay').style.display === 'none') {
+                animationId = requestAnimationFrame(update);
+            }
+        }
+
+        function renderLeaderboard() {
+            const leaderList = document.getElementById('leader-list');
+            const sortedPlayers = [...players]
+                .sort((a, b) => b.progress - a.progress)
+                .slice(0, 5);
+            
+            leaderList.innerHTML = sortedPlayers.map((player, index) => `
+                <div class="flex items-center gap-2 mb-1 text-sm">
+                    <span class="font-bold text-gray-500 w-4">${index + 1}.</span>
+                    <div class="w-2 h-2 rounded-full" style="background:${player.color}"></div>
+                    <span class="truncate font-bold">${player.name}</span>
+                    <span class="ml-auto text-xs text-gray-500">${Math.round(player.progress * 100)}%</span>
+                </div>
+            `).join('');
+        }
+
+        function startGame() {
+            if (isRacing) return;
+            
+            isRacing = true;
+            winner = null;
+            
+            document.getElementById('winner-overlay').style.display = 'none';
+            document.getElementById('setup-layer').style.display = 'none';
+            document.getElementById('restore-btn').classList.remove('hidden');
+            document.getElementById('leaderboard').style.display = 'none';
+            
+            players.forEach(player => {
+                player.progress = 0;
+                player.isFinished = false;
+                player.finishTime = null;
+            });
+            
+            update();
+            
+            setTimeout(() => {
+                document.getElementById('leaderboard').style.display = 'block';
+            }, 2000);
+        }
+
+        function endGame(winningPlayer) {
+            document.getElementById('winner-overlay').style.display = 'flex';
+            document.getElementById('winner-name').innerText = winningPlayer.name;
+            document.getElementById('winner-name').style.color = winningPlayer.color;
+            
+            const sortedPlayers = [...players]
+                .sort((a, b) => (a.finishTime || Infinity) - (b.finishTime || Infinity));
+            
+            const resultsTable = document.getElementById('final-results-table');
+            resultsTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="p-2">#</th>
+                        <th class="p-2">Nom</th>
+                        <th class="p-2">Temps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedPlayers.map((player, index) => `
+                        <tr class="border-b border-gray-200">
+                            <td class="p-2">${index + 1}</td>
+                            <td class="p-2 font-bold" style="color:${player.color}">${player.name}</td>
+                            <td class="p-2 text-gray-600">${player.finishTime ? ((player.finishTime - Date.now() + 10000) / 1000).toFixed(1) + 's' : '--'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            
+            winnersHistory.unshift({
+                name: winningPlayer.name,
+                color: winningPlayer.color,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+            
+            if (winnersHistory.length > 50) {
+                winnersHistory.pop();
+            }
+            
+            updateHistoryDisplay();
+            
+            startAutoRestart();
+            autoSave();
+        }
+
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('history-list');
+            document.getElementById('history-count').innerText = winnersHistory.length;
+            
+            if (winnersHistory.length === 0) {
+                historyList.innerHTML = '<div class="text-gray-400 italic text-center text-xs pt-2">Aucune victoire...</div>';
+            } else {
+                historyList.innerHTML = winnersHistory.map(history => `
+                    <div class="history-item border-l-4" style="border-color:${history.color}">
+                        <span class="font-bold flex-1 truncate">${history.name}</span>
+                        <span class="text-gray-400 text-[10px]">${history.time}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function showFinalResults(rankings) {
+            if (!rankings || rankings.length === 0) return;
+            
+            const resultsTable = document.getElementById('final-results-table');
+            resultsTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="p-2">#</th>
+                        <th class="p-2">Nom</th>
+                        <th class="p-2">Temps</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rankings.map(ranking => `
+                        <tr class="border-b border-gray-200">
+                            <td class="p-2">${ranking.position}</td>
+                            <td class="p-2 font-bold" style="color:${ranking.color}">${ranking.username}</td>
+                            <td class="p-2 text-gray-600">${(ranking.time / 1000).toFixed(2)}s</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+        }
+
+        function startAutoRestart() {
+            let timeLeft = 10;
+            const button = document.getElementById('btn-next-race');
+            
+            if (autoRestartInterval) {
+                clearInterval(autoRestartInterval);
+            }
+            
+            const updateButtonText = () => {
+                if (waitingQueue.length >= MAX_PLAYERS) {
+                    button.innerText = `Auto (${timeLeft}s) - File Pleine!`;
+                } else {
+                    button.innerText = `Suivante (${timeLeft}s)`;
+                }
+            };
+            
+            updateButtonText();
+            
+            autoRestartInterval = setInterval(() => {
+                timeLeft--;
+                updateButtonText();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(autoRestartInterval);
+                    resetGame();
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            if (autoRestartInterval) {
+                clearInterval(autoRestartInterval);
+                autoRestartInterval = null;
+            }
+            
+            isRacing = false;
+            winner = null;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            document.getElementById('winner-overlay').style.display = 'none';
+            document.getElementById('setup-layer').style.display = 'flex';
+            document.getElementById('restore-btn').classList.add('hidden');
+            document.getElementById('leaderboard').style.display = 'none';
+            
+            registeredNames = [];
+            players = [];
+            
+            while (waitingQueue.length > 0 && registeredNames.length < MAX_PLAYERS) {
+                const name = waitingQueue.shift();
+                registeredNames.push(name);
+                players.push(new Player(players.length, name));
+            }
+            
+            updateQueueDisplay();
+            renderPlayerList();
+            draw();
+            checkAutoStart();
+            autoSave();
+        }
+
+        // Démarrer l'application
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
