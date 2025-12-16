@@ -642,6 +642,14 @@
         .game-control-btn.hidden {
             display: none;
         }
+
+        .threshold-section {
+            background: #f0f9ff;
+            border: 2px solid #7dd3fc;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
     </style>
 </head>
 <body>
@@ -672,6 +680,32 @@
             </div>
 
             <div class="panel-content custom-scrollbar">
+                <!-- SECTION : SEUIL DE LANCEMENT -->
+                <div class="threshold-section">
+                    <h3 class="text-xs text-blue-600 mb-2 uppercase tracking-wide">⚙️ Seuil de Lancement</h3>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Joueurs requis</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustRequiredPlayers(-1)" class="control-button">-</button>
+                            <span id="required-players-display" class="text-xs w-10 text-center leading-6 font-mono font-bold">20</span>
+                            <button onclick="adjustRequiredPlayers(1)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Lancement auto</span>
+                        <div class="flex gap-1">
+                            <button onclick="toggleAutoStart()" class="control-button text-xs" id="btn-auto-start">ON</button>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-blue-500 text-center mt-2 bg-blue-50 p-2 rounded border border-blue-100">
+                        <div class="font-bold text-blue-700">État: <span id="threshold-status">Attente...</span></div>
+                        <div class="text-blue-500 text-[10px]">Auto: <span id="auto-start-status">Actif</span></div>
+                    </div>
+                </div>
+
                 <div class="mb-4 text-center">
                     <button onclick="connectToServer()" id="btn-connect" class="btn btn-connect w-full mb-2 shadow-md">
                         📡 Connecter Serveur
@@ -694,7 +728,7 @@
                 
                 <div class="flex justify-between items-center mb-1 border-b pb-1">
                     <span class="font-bold text-gray-700 text-sm">
-                        Joueurs (<span id="player-count-display">0/20</span>)
+                        Joueurs (<span id="player-count-display">0/<span id="max-players-display">20</span></span>)
                     </span>
                     <button onclick="resetRegistrations()" class="text-xs text-red-500 hover:underline">
                         Vider
@@ -1073,11 +1107,14 @@
 
                 <div class="mt-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-500">Sauvegarde auto</span>
-                        <span id="last-save-time" class="text-[10px] text-gray-400">Jamais</span>
+                        <span class="text-xs text-gray-500">Sauvegarde</span>
+                        <span id="last-save-time" class="text-[10px] text-gray-400">-</span>
                     </div>
-                    <button onclick="manualSave()" class="w-full mt-1 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 py-1 rounded">
-                        💾 Sauvegarder maintenant
+                    <button onclick="manualSave()" class="w-full mt-1 text-xs bg-green-500 hover:bg-green-600 text-white py-2 rounded font-bold">
+                        💾 SAUVEGARDER
+                    </button>
+                    <button onclick="loadSettings()" class="w-full mt-2 text-xs bg-blue-500 hover:bg-blue-600 text-white py-2 rounded">
+                        📂 CHARGER
                     </button>
                 </div>
             </div>
@@ -1147,12 +1184,12 @@
     </div>
     
     <div id="save-indicator" class="save-indicator">
-        💾 Sauvegarde auto effectuée
+        💾 Sauvegarde effectuée
     </div>
 
     <script>
         // Configuration du jeu
-        const MAX_PLAYERS = 20;
+        const MAX_PLAYERS_CAPACITY = 1000000; // Augmenté à 1 million
         const SERVER_PORT = 8832;
         const SERVER_WS_URL = `ws://localhost:${SERVER_PORT}`;
         const COLORS = [
@@ -1162,15 +1199,16 @@
             '#EC4899', '#F43F5E', '#334155', '#475569', '#000000'
         ];
         
-        // Clés pour la sauvegarde locale
+        // Clé pour la sauvegarde locale
         const STORAGE_KEY = 'snake_race_settings';
-        const AUTO_SAVE_INTERVAL = 10000; // 10 secondes
-        const SAVE_THROTTLE = 2000; // 2 secondes entre sauvegardes automatiques
 
         // Variables globales
         const canvas = document.getElementById('raceCanvas');
         const ctx = canvas.getContext('2d');
         
+        // Variables configurables
+        let requiredPlayers = 20; // Nombre de joueurs requis pour démarrer (configurable)
+        let autoStartEnabled = true; // Si le lancement automatique est activé
         let registeredNames = [];
         let waitingQueue = [];
         let winnersHistory = [];
@@ -1213,8 +1251,6 @@
         let draggingNode = null;
         let showPath = true;
         let lastSaveTime = null;
-        let saveThrottleTimeout = null;
-        let autoSaveInterval = null;
 
         // Variables pour le style des noms
         let playerNameSize = 19;
@@ -1298,17 +1334,76 @@
             // Initialiser le panneau de contrôle du jeu
             document.getElementById('game-controls-panel').style.display = 'none';
             
+            // Initialiser l'affichage du seuil
+            updateThresholdDisplay();
+            
             // Charger les paramètres sauvegardés
             loadSettings();
-            
-            // Démarrer la sauvegarde automatique périodique
-            startAutoSaveInterval();
             
             // Dessiner la scène initiale
             draw();
             
             // Tester la connexion au serveur
             setTimeout(testServerConnection, 1000);
+        }
+
+        // FONCTIONS POUR LE SEUIL DE LANCEMENT
+        function adjustRequiredPlayers(delta) {
+            requiredPlayers = Math.max(1, Math.min(MAX_PLAYERS_CAPACITY, requiredPlayers + delta));
+            updateThresholdDisplay();
+            checkAutoStart();
+        }
+
+        function toggleAutoStart() {
+            autoStartEnabled = !autoStartEnabled;
+            const btn = document.getElementById('btn-auto-start');
+            btn.innerText = autoStartEnabled ? 'ON' : 'OFF';
+            btn.style.background = autoStartEnabled ? '#22c55e' : '#f3f4f6';
+            btn.style.color = autoStartEnabled ? 'white' : '#6b7280';
+            updateThresholdDisplay();
+            checkAutoStart();
+        }
+
+        function updateThresholdDisplay() {
+            document.getElementById('required-players-display').innerText = requiredPlayers;
+            document.getElementById('max-players-display').innerText = requiredPlayers;
+            
+            const currentPlayers = registeredNames.length;
+            const statusEl = document.getElementById('threshold-status');
+            const autoStatusEl = document.getElementById('auto-start-status');
+            
+            if (currentPlayers >= requiredPlayers) {
+                statusEl.textContent = '✅ Prêt à lancer !';
+                statusEl.style.color = '#10b981';
+            } else {
+                statusEl.textContent = `Attente... (${currentPlayers}/${requiredPlayers})`;
+                statusEl.style.color = '#f59e0b';
+            }
+            
+            autoStatusEl.textContent = autoStartEnabled ? 'Actif' : 'Inactif';
+            autoStatusEl.style.color = autoStartEnabled ? '#10b981' : '#6b7280';
+            
+            // Mettre à jour le texte du bouton de lancement
+            updateLaunchButtonText();
+        }
+
+        function updateLaunchButtonText() {
+            const btn = document.getElementById('btn-launch-game');
+            const currentPlayers = registeredNames.length;
+            
+            if (currentPlayers >= requiredPlayers) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btn.innerHTML = `🚀 Lancer (${currentPlayers}/${requiredPlayers})`;
+            } else if (currentPlayers > 1) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btn.innerHTML = `Lancer (${currentPlayers}/${requiredPlayers})`;
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+                btn.innerHTML = `Attente... (${currentPlayers}/${requiredPlayers})`;
+            }
         }
 
         // FONCTIONS POUR LE CONTRÔLE DU JEU (PAUSE/PLAY/RESTART)
@@ -1398,18 +1493,14 @@
         }
 
         // FONCTIONS POUR LES OBSTACLES
-
-        // Fonctions pour ajuster les paramètres des obstacles
         function adjustObstacleFrequency(delta) {
             obstacleFrequency = Math.max(0, Math.min(10, obstacleFrequency + delta));
             document.getElementById('obstacle-freq-display').innerText = obstacleFrequency;
-            saveSettings();
         }
 
         function adjustObstacleDuration(delta) {
             obstacleDuration = Math.max(0.5, Math.min(10, obstacleDuration + delta));
             document.getElementById('obstacle-duration-display').innerText = obstacleDuration.toFixed(1);
-            saveSettings();
         }
 
         function toggleObstacles() {
@@ -1419,7 +1510,6 @@
             btn.style.background = obstaclesEnabled ? '#22c55e' : '#f3f4f6';
             btn.style.color = obstaclesEnabled ? 'white' : '#6b7280';
             draw();
-            saveSettings();
         }
 
         function addObstacle(type) {
@@ -1431,7 +1521,7 @@
                 type: type,
                 x: centerX,
                 y: centerY,
-                progress: Math.random() * 0.8 + 0.1, // Position sur le chemin
+                progress: Math.random() * 0.8 + 0.1,
                 width: 30,
                 height: 30,
                 effectValue: getObstacleEffectValue(type),
@@ -1443,14 +1533,13 @@
             showAllObstacles();
             updateObstaclesDisplay();
             draw();
-            saveSettings();
         }
 
         function getObstacleEffectValue(type) {
             switch(type) {
-                case 'snail': return 0.3; // Ralentissement à 30% de la vitesse
-                case 'lightning': return 2.0; // Accélération x2
-                case 'blackhole': return 0; // Retour au début
+                case 'snail': return 0.3;
+                case 'lightning': return 2.0;
+                case 'blackhole': return 0;
                 default: return 1.0;
             }
         }
@@ -1472,7 +1561,6 @@
                 markerEl.dataset.id = obstacle.id;
                 markerEl.dataset.index = index;
                 
-                // Ajouter l'icône
                 switch(obstacle.type) {
                     case 'snail': markerEl.innerHTML = '🐌'; break;
                     case 'lightning': markerEl.innerHTML = '⚡'; break;
@@ -1480,7 +1568,6 @@
                 }
                 
                 markerEl.title = getObstacleTitle(obstacle.type);
-                
                 markerEl.addEventListener('mousedown', startObstacleDrag);
                 
                 document.getElementById('game-container').appendChild(markerEl);
@@ -1519,7 +1606,6 @@
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            // Trouver le point le plus proche sur le chemin
             let closestProgress = draggingObstacle.progress;
             let minDistance = Infinity;
             
@@ -1556,7 +1642,6 @@
             }
             document.removeEventListener('mousemove', updateObstacleDragPosition);
             document.removeEventListener('mouseup', stopObstacleDrag);
-            saveSettings();
         }
 
         function clearAllObstacles() {
@@ -1565,7 +1650,6 @@
                 hideAllObstacles();
                 updateObstaclesDisplay();
                 draw();
-                saveSettings();
             }
         }
 
@@ -1576,14 +1660,12 @@
             }
             
             obstacles = [];
-            
-            // Générer des obstacles aléatoirement sur le chemin
             const numObstacles = obstacleFrequency;
             const obstacleTypes = ['snail', 'lightning', 'blackhole'];
             
             for (let i = 0; i < numObstacles; i++) {
                 const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-                const progress = 0.1 + (Math.random() * 0.8); // Éviter les extrémités
+                const progress = 0.1 + (Math.random() * 0.8);
                 
                 const obstacle = {
                     id: Date.now() + Math.random() + i,
@@ -1604,7 +1686,6 @@
             showAllObstacles();
             updateObstaclesDisplay();
             draw();
-            saveSettings();
         }
 
         function updateObstaclesDisplay() {
@@ -1635,12 +1716,11 @@
                     Math.pow(playerPos.y - obstacle.y, 2)
                 );
                 
-                if (distance < 20) { // Distance de collision
+                if (distance < 20) {
                     applyObstacleEffect(player, obstacle);
-                    obstacle.active = false; // Désactiver l'obstacle après collision
+                    obstacle.active = false;
                     collisionDetected = true;
                     
-                    // Réactiver l'obstacle après un délai
                     setTimeout(() => {
                         obstacle.active = true;
                     }, obstacleDuration * 1000);
@@ -1653,33 +1733,31 @@
         function applyObstacleEffect(player, obstacle) {
             switch(obstacle.type) {
                 case 'snail':
-                    player.multiplier = obstacle.effectValue; // Ralentissement
+                    player.multiplier = obstacle.effectValue;
                     player.effectEnd = Date.now() + (obstacleDuration * 1000);
                     player.effectType = 'snail';
                     break;
                     
                 case 'lightning':
-                    player.multiplier = obstacle.effectValue; // Accélération
+                    player.multiplier = obstacle.effectValue;
                     player.effectEnd = Date.now() + (obstacleDuration * 1000);
                     player.effectType = 'lightning';
                     break;
                     
                 case 'blackhole':
-                    player.progress = 0; // Retour au début
+                    player.progress = 0;
                     player.multiplier = 1;
                     player.effectEnd = 0;
                     player.effectType = 'blackhole';
                     break;
             }
             
-            // Animation visuelle
             createObstacleEffect(player, obstacle.type);
         }
 
         function createObstacleEffect(player, type) {
             const playerPos = getPositionOnPath(player.progress);
             
-            // Créer un effet visuel
             const effect = {
                 x: playerPos.x,
                 y: playerPos.y,
@@ -1690,7 +1768,6 @@
                 particles: []
             };
             
-            // Ajouter des particules
             for (let i = 0; i < 10; i++) {
                 effect.particles.push({
                     x: playerPos.x,
@@ -1701,7 +1778,6 @@
                 });
             }
             
-            // Animation de l'effet
             function animateEffect() {
                 effect.life -= 0.05;
                 effect.size += 2;
@@ -1710,7 +1786,7 @@
                     p.x += p.vx;
                     p.y += p.vy;
                     p.life -= 0.1;
-                    p.vy += 0.2; // Gravité
+                    p.vy += 0.2;
                 });
                 
                 effect.particles = effect.particles.filter(p => p.life > 0);
@@ -1719,7 +1795,7 @@
                     requestAnimationFrame(animateEffect);
                 }
                 
-                draw(); // Redessiner
+                draw();
             }
             
             animateEffect();
@@ -1733,7 +1809,6 @@
                 
                 ctx.save();
                 
-                // Dessiner l'obstacle
                 ctx.beginPath();
                 ctx.arc(obstacle.x, obstacle.y, 15, 0, Math.PI * 2);
                 
@@ -1754,7 +1829,6 @@
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                // Dessiner l'icône
                 ctx.font = 'bold 16px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -1772,12 +1846,10 @@
                         break;
                 }
                 
-                // Effet de pulsation
                 if (isRacing && !isPaused) {
                     const pulse = Math.sin(Date.now() / 500) * 0.2 + 0.8;
                     ctx.globalAlpha = pulse;
                     
-                    // Aura
                     ctx.beginPath();
                     ctx.arc(obstacle.x, obstacle.y, 20, 0, Math.PI * 2);
                     ctx.strokeStyle = obstacle.type === 'snail' ? '#ea580c' : 
@@ -1820,7 +1892,6 @@
             isDraggingLeaderboard = false;
             document.removeEventListener('mousemove', onLeaderboardDrag);
             document.removeEventListener('mouseup', stopLeaderboardDrag);
-            saveSettings();
         }
 
         function toggleLeaderboard() {
@@ -1830,7 +1901,6 @@
             } else {
                 leaderboard.style.display = 'none';
             }
-            saveSettings();
         }
 
         // Fonctions pour le drag du panel principal
@@ -1863,7 +1933,6 @@
             isDraggingPanel = false;
             document.removeEventListener('mousemove', onPanelDrag);
             document.removeEventListener('mouseup', stopPanelDrag);
-            saveSettings();
         }
 
         // Fonctions pour le style des noms
@@ -1872,14 +1941,12 @@
             document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function changeNameColor() {
             playerNameColor = document.getElementById('name-color-input').value;
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function resetNameColor() {
@@ -1887,41 +1954,35 @@
             document.getElementById('name-color-input').value = playerNameColor;
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function changeShadowColor() {
             playerNameShadowColor = document.getElementById('shadow-color-input').value;
             draw();
-            saveSettings();
         }
 
         function resetShadowColor() {
             playerNameShadowColor = '#000000';
             document.getElementById('shadow-color-input').value = playerNameShadowColor;
             draw();
-            saveSettings();
         }
 
         function adjustShadowBlur(delta) {
             playerNameShadowBlur = Math.max(0, Math.min(20, playerNameShadowBlur + delta));
             document.getElementById('shadow-blur-display').innerText = `${playerNameShadowBlur}px`;
             draw();
-            saveSettings();
         }
 
         function adjustShadowOffset(delta) {
             playerNameShadowOffset = Math.max(0, Math.min(5, playerNameShadowOffset + delta));
             document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
             draw();
-            saveSettings();
         }
 
         function changeFontFamily() {
             playerNameFontFamily = document.getElementById('font-family-select').value;
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function toggleTextBold() {
@@ -1935,7 +1996,6 @@
             }
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function toggleTextItalic() {
@@ -1949,7 +2009,6 @@
             }
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function toggleTextUpperCase() {
@@ -1963,7 +2022,6 @@
             }
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
         function updateFontPreview() {
@@ -2001,13 +2059,13 @@
             
             updateFontPreview();
             draw();
-            saveSettings();
         }
 
-        // Sauvegarde automatique complète
+        // SAUVEGARDE MANUELLE
         function getFullSettings() {
             return {
-                // Paramètres du chemin
+                requiredPlayers,
+                autoStartEnabled,
                 pathWidth,
                 pathColor,
                 pathPadding,
@@ -2015,8 +2073,6 @@
                 path3DEnabled,
                 showPath,
                 pathNodes: pathNodes.map(node => ({ x: node.x, y: node.y })),
-                
-                // Paramètres des obstacles
                 obstacles: obstacles.map(o => ({
                     id: o.id,
                     type: o.type,
@@ -2027,8 +2083,6 @@
                 obstaclesEnabled,
                 obstacleFrequency,
                 obstacleDuration,
-                
-                // Paramètres des noms des joueurs
                 playerNameSize,
                 playerNameColor,
                 playerNameShadowColor,
@@ -2038,8 +2092,6 @@
                 playerNameFontWeight,
                 playerNameFontStyle,
                 playerNameTextTransform,
-                
-                // Paramètres de la piste
                 trackScale,
                 trackX,
                 trackY,
@@ -2048,15 +2100,11 @@
                 globalBallOffsetY,
                 trackRows,
                 showDebugPath,
-                
-                // Paramètres du fond
                 backgroundOpacity,
                 backgroundBlur,
                 backgroundScale,
                 backgroundX,
                 backgroundY,
-                
-                // Positions des panneaux
                 panelPosition: {
                     left: document.getElementById('setup-layer').style.left,
                     top: document.getElementById('setup-layer').style.top
@@ -2066,12 +2114,8 @@
                     top: document.getElementById('leaderboard-container').style.top
                 },
                 leaderboardVisible: document.getElementById('leaderboard').style.display !== 'none',
-                
-                // Images (sous forme de DataURL si disponibles)
                 trackImageData: trackImage ? canvasToDataURL(trackImage) : null,
                 backgroundImageData: backgroundImage ? canvasToDataURL(backgroundImage) : null,
-                
-                // Données de l'interface
                 registeredNames: [...registeredNames],
                 waitingQueue: [...waitingQueue],
                 winnersHistory: [...winnersHistory],
@@ -2082,22 +2126,16 @@
                     progress: p.progress,
                     isFinished: p.isFinished
                 })),
-                
-                // État du jeu
                 isRacing,
                 isPaused,
                 winner: winner ? {
                     name: winner.name,
                     color: winner.color
                 } : null,
-                
-                // URLs des images
                 trackUrl: document.getElementById('track-url-input').value,
                 backgroundUrl: document.getElementById('background-url-input').value,
-                
-                // Méta-données
                 savedAt: new Date().toISOString(),
-                version: '2.4'
+                version: '2.5'
             };
         }
 
@@ -2128,36 +2166,32 @@
             });
         }
 
-        function saveSettings() {
-            if (saveThrottleTimeout) {
-                clearTimeout(saveThrottleTimeout);
-            }
-            
-            saveThrottleTimeout = setTimeout(() => {
+        function manualSave() {
+            try {
+                const settings = getFullSettings();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+                
+                const now = new Date();
+                lastSaveTime = now;
+                document.getElementById('last-save-time').textContent = 
+                    now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                showSaveIndicator("💾 Sauvegarde manuelle effectuée");
+                console.log("✅ Sauvegarde manuelle effectuée");
+            } catch (e) {
+                console.error("❌ Erreur sauvegarde:", e);
                 try {
-                    const settings = getFullSettings();
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-                    
-                    const now = new Date();
-                    lastSaveTime = now;
-                    document.getElementById('last-save-time').textContent = 
-                        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
-                    showSaveIndicator();
-                    console.log("✅ Sauvegarde complète effectuée");
-                } catch (e) {
-                    console.error("❌ Erreur sauvegarde:", e);
-                    try {
-                        const lightSettings = getFullSettings();
-                        lightSettings.trackImageData = null;
-                        lightSettings.backgroundImageData = null;
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSettings));
-                        console.log("✅ Sauvegarde légère effectuée");
-                    } catch (e2) {
-                        console.error("❌ Échec sauvegarde légère:", e2);
-                    }
+                    const lightSettings = getFullSettings();
+                    lightSettings.trackImageData = null;
+                    lightSettings.backgroundImageData = null;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(lightSettings));
+                    showSaveIndicator("💾 Sauvegarde légère effectuée");
+                    console.log("✅ Sauvegarde légère effectuée");
+                } catch (e2) {
+                    console.error("❌ Échec sauvegarde légère:", e2);
+                    showSaveIndicator("❌ Erreur de sauvegarde", true);
                 }
-            }, SAVE_THROTTLE);
+            }
         }
 
         async function loadSettings() {
@@ -2171,7 +2205,17 @@
                 const settings = JSON.parse(saved);
                 console.log("Chargement des paramètres sauvegardés...");
                 
-                // Restaurer les paramètres du chemin
+                if (settings.requiredPlayers !== undefined) {
+                    requiredPlayers = settings.requiredPlayers;
+                }
+                if (settings.autoStartEnabled !== undefined) {
+                    autoStartEnabled = settings.autoStartEnabled;
+                    const btn = document.getElementById('btn-auto-start');
+                    btn.innerText = autoStartEnabled ? 'ON' : 'OFF';
+                    btn.style.background = autoStartEnabled ? '#22c55e' : '#f3f4f6';
+                    btn.style.color = autoStartEnabled ? 'white' : '#6b7280';
+                }
+                
                 if (settings.pathWidth !== undefined) {
                     pathWidth = settings.pathWidth;
                     document.getElementById('path-width-display').innerText = `${pathWidth}px`;
@@ -2206,7 +2250,6 @@
                     pathNodes = settings.pathNodes;
                 }
                 
-                // Restaurer les paramètres des obstacles
                 if (settings.obstacles) {
                     obstacles = settings.obstacles.map(o => {
                         const obstacle = {
@@ -2240,7 +2283,6 @@
                     document.getElementById('obstacle-duration-display').innerText = obstacleDuration.toFixed(1);
                 }
                 
-                // Restaurer les paramètres des noms des joueurs
                 if (settings.playerNameSize !== undefined) {
                     playerNameSize = settings.playerNameSize;
                     document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
@@ -2293,7 +2335,6 @@
                     }
                 }
                 
-                // Restaurer les paramètres de la piste
                 if (settings.trackScale !== undefined) {
                     trackScale = settings.trackScale;
                     document.getElementById('scale-display').innerText = trackScale.toFixed(2);
@@ -2326,7 +2367,6 @@
                     }
                 }
                 
-                // Restaurer les paramètres du fond
                 if (settings.backgroundOpacity !== undefined) {
                     backgroundOpacity = settings.backgroundOpacity;
                     document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
@@ -2338,7 +2378,6 @@
                 if (settings.backgroundX !== undefined) backgroundX = settings.backgroundX;
                 if (settings.backgroundY !== undefined) backgroundY = settings.backgroundY;
                 
-                // Restaurer les positions des panneaux
                 if (settings.panelPosition) {
                     const setupLayer = document.getElementById('setup-layer');
                     if (settings.panelPosition.left) setupLayer.style.left = settings.panelPosition.left;
@@ -2356,12 +2395,10 @@
                     leaderboard.style.display = settings.leaderboardVisible ? 'block' : 'none';
                 }
                 
-                // Restaurer l'état de pause
                 if (settings.isPaused !== undefined) {
                     isPaused = settings.isPaused;
                 }
                 
-                // Restaurer les images
                 if (settings.trackImageData) {
                     try {
                         trackImage = await dataURLToImage(settings.trackImageData);
@@ -2380,12 +2417,10 @@
                     }
                 }
                 
-                // Restaurer les données
                 if (settings.registeredNames) registeredNames = settings.registeredNames;
                 if (settings.waitingQueue) waitingQueue = settings.waitingQueue;
                 if (settings.winnersHistory) winnersHistory = settings.winnersHistory;
                 
-                // Restaurer les joueurs
                 if (settings.players && settings.players.length > 0) {
                     players = settings.players.map(pData => {
                         const player = new Player(pData.id, pData.name);
@@ -2396,7 +2431,6 @@
                     });
                 }
                 
-                // Restaurer l'état du jeu
                 if (settings.isRacing !== undefined) isRacing = settings.isRacing;
                 if (settings.winner && settings.winner.name) {
                     winner = players.find(p => p.name === settings.winner.name) || 
@@ -2404,18 +2438,16 @@
                     winner.color = settings.winner.color;
                 }
                 
-                // Restaurer les URLs
                 if (settings.trackUrl) document.getElementById('track-url-input').value = settings.trackUrl;
                 if (settings.backgroundUrl) document.getElementById('background-url-input').value = settings.backgroundUrl;
                 
-                // Mettre à jour l'affichage du temps de sauvegarde
                 if (settings.savedAt) {
                     const saveDate = new Date(settings.savedAt);
                     document.getElementById('last-save-time').textContent = 
                         saveDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 }
                 
-                // Mettre à jour l'interface
+                updateThresholdDisplay();
                 renderPlayerList();
                 updateHistoryDisplay();
                 updateQueueDisplay();
@@ -2425,70 +2457,23 @@
                 renderLeaderboard();
                 
                 console.log("✅ Chargement terminé");
-                
-                // Redessiner
                 draw();
                 
             } catch (e) {
                 console.error("❌ Erreur lors du chargement:", e);
-                try {
-                    const backup = localStorage.getItem(STORAGE_KEY + '_backup');
-                    if (backup) {
-                        console.log("Tentative de chargement depuis backup...");
-                        localStorage.setItem(STORAGE_KEY, backup);
-                        location.reload();
-                    }
-                } catch (e2) {
-                    console.error("❌ Échec chargement backup:", e2);
-                }
+                showSaveIndicator("❌ Erreur de chargement", true);
             }
         }
 
-        function startAutoSaveInterval() {
-            if (autoSaveInterval) {
-                clearInterval(autoSaveInterval);
-            }
-            
-            autoSaveInterval = setInterval(() => {
-                if (document.visibilityState === 'visible') {
-                    saveSettings();
-                }
-            }, AUTO_SAVE_INTERVAL);
-            
-            window.addEventListener('beforeunload', () => {
-                saveSettings();
-                try {
-                    const settings = getFullSettings();
-                    localStorage.setItem(STORAGE_KEY + '_backup', JSON.stringify(settings));
-                } catch (e) {
-                    console.error("Erreur création backup:", e);
-                }
-            });
-            
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden') {
-                    saveSettings();
-                }
-            });
-        }
-
-        function manualSave() {
-            saveSettings();
+        function showSaveIndicator(message, isError = false) {
             const indicator = document.getElementById('save-indicator');
-            indicator.textContent = "💾 Sauvegarde manuelle effectuée";
+            indicator.textContent = message;
+            indicator.style.background = isError ? '#ef4444' : '#10b981';
             indicator.style.display = 'block';
+            
             setTimeout(() => {
                 indicator.style.display = 'none';
             }, 3000);
-        }
-
-        function showSaveIndicator() {
-            const indicator = document.getElementById('save-indicator');
-            indicator.style.display = 'block';
-            
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 2000);
         }
 
         // Fonctions pour le chemin des bulles
@@ -2503,21 +2488,17 @@
                 let y = pathPadding + row * rowHeight + globalBallOffsetY;
                 
                 if (row % 2 === 0) {
-                    // Gauche vers droite
                     pathNodes.push({ x: pathPadding, y: y });
                     pathNodes.push({ x: width - pathPadding, y: y });
                 } else {
-                    // Droite vers gauche
                     pathNodes.push({ x: width - pathPadding, y: y });
                     pathNodes.push({ x: pathPadding, y: y });
                 }
             }
             
             updatePathInfoDisplay();
-            saveSettings();
         }
 
-        // Mode création de points
         function togglePathCreationMode() {
             if (pathEditMode) {
                 togglePathEditMode();
@@ -2532,27 +2513,18 @@
                 btn.style.background = '#dc2626';
                 btn.style.color = 'white';
                 controls.style.display = 'flex';
-                
                 canvas.addEventListener('click', addPathPointOnClick);
                 canvas.classList.add('creating-path');
-                
                 showAllPathPoints();
-                
                 alert("Mode création activé ! Cliquez sur la piste pour ajouter des points.");
             } else {
                 btn.innerHTML = '📍 Créer des points';
                 btn.style.background = '#dbeafe';
                 btn.style.color = '#1e40af';
                 controls.style.display = 'none';
-                
                 canvas.removeEventListener('click', addPathPointOnClick);
                 canvas.classList.remove('creating-path');
-                
                 hideAllPathPoints();
-                
-                if (pathNodes.length >= 2) {
-                    saveSettings();
-                }
             }
             
             draw();
@@ -2566,11 +2538,9 @@
             const y = event.clientY - rect.top;
             
             pathNodes.push({ x, y });
-            
             updatePathInfoDisplay();
             showAllPathPoints();
             drawPathWithPoints();
-            saveSettings();
         }
 
         function addPathPointAtCenter() {
@@ -2581,7 +2551,6 @@
             updatePathInfoDisplay();
             showAllPathPoints();
             drawPathWithPoints();
-            saveSettings();
         }
 
         function clearPathPoints() {
@@ -2590,7 +2559,6 @@
                 updatePathInfoDisplay();
                 hideAllPathPoints();
                 draw();
-                saveSettings();
             }
         }
 
@@ -2599,7 +2567,6 @@
                 generateDefaultPath();
                 showAllPathPoints();
                 draw();
-                saveSettings();
             }
         }
 
@@ -2622,7 +2589,6 @@
                 nodeEl.appendChild(number);
                 
                 nodeEl.addEventListener('mousedown', startPathPointDrag);
-                
                 document.getElementById('game-container').appendChild(nodeEl);
             });
         }
@@ -2637,7 +2603,6 @@
             const index = parseInt(e.target.dataset.index);
             draggingNode = index;
             dragMode = 'path';
-            
             e.target.classList.add('dragging');
             document.addEventListener('mousemove', updatePathPointPosition);
             document.addEventListener('mouseup', stopPathPointDrag);
@@ -2666,8 +2631,6 @@
             document.querySelectorAll('.path-node').forEach(node => node.classList.remove('dragging'));
             document.removeEventListener('mousemove', updatePathPointPosition);
             document.removeEventListener('mouseup', stopPathPointDrag);
-            
-            saveSettings();
         }
 
         function updatePathInfoDisplay() {
@@ -2686,25 +2649,21 @@
             }
         }
 
-        // Fonctions ajustements chemin
         function adjustPathWidth(delta) {
             pathWidth = Math.max(2, Math.min(100, pathWidth + delta));
             document.getElementById('path-width-display').innerText = `${pathWidth}px`;
             draw();
-            saveSettings();
         }
 
         function changePathColor() {
             pathColor = document.getElementById('path-color-input').value;
             draw();
-            saveSettings();
         }
 
         function resetPathColor() {
             pathColor = '#e2e8f0';
             document.getElementById('path-color-input').value = pathColor;
             draw();
-            saveSettings();
         }
 
         function adjustPathPadding(delta) {
@@ -2714,14 +2673,12 @@
                 generateDefaultPath();
             }
             draw();
-            saveSettings();
         }
 
         function adjustPathCurve(delta) {
             pathCurve = Math.max(0, Math.min(50, pathCurve + delta));
             document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
             draw();
-            saveSettings();
         }
 
         function togglePath3D() {
@@ -2731,7 +2688,6 @@
             btn.style.background = path3DEnabled ? '#22c55e' : '#f3f4f6';
             btn.style.color = path3DEnabled ? 'white' : '#6b7280';
             draw();
-            saveSettings();
         }
 
         function togglePathVisibility() {
@@ -2741,7 +2697,6 @@
             btn.style.background = showPath ? '#22c55e' : '#f3f4f6';
             btn.style.color = showPath ? 'white' : '#6b7280';
             draw();
-            saveSettings();
         }
 
         function togglePathEditMode() {
@@ -2762,7 +2717,6 @@
                 btn.style.background = '#bbf7d0';
                 btn.style.color = '#065f46';
                 hideAllPathPoints();
-                saveSettings();
             }
             
             draw();
@@ -2793,10 +2747,8 @@
             
             generateDefaultPath();
             draw();
-            saveSettings();
         }
 
-        // Dessin du chemin
         function drawPathWithPoints() {
             if (!showPath || pathNodes.length < 2) return;
 
@@ -2892,7 +2844,6 @@
             img.onload = function() {
                 backgroundImage = img;
                 fitBackgroundImage();
-                saveSettings();
             };
             img.onerror = function() {
                 alert("❌ Erreur de chargement de l'image de fond");
@@ -2909,7 +2860,6 @@
                 img.onload = function() {
                     backgroundImage = img;
                     fitBackgroundImage();
-                    saveSettings();
                 };
                 img.src = e.target.result;
             };
@@ -2927,27 +2877,23 @@
             backgroundY = (canvas.height - backgroundImage.height * backgroundScale) / 2;
             
             draw();
-            saveSettings();
         }
 
         function adjustBackgroundOpacity(delta) {
             backgroundOpacity = Math.max(0.1, Math.min(1.0, backgroundOpacity + delta));
             document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
             draw();
-            saveSettings();
         }
 
         function adjustBackgroundBlur(delta) {
             backgroundBlur = Math.max(0, Math.min(20, backgroundBlur + delta));
             document.getElementById('bg-blur-display').innerText = `${backgroundBlur}px`;
             draw();
-            saveSettings();
         }
 
         function clearBackground() {
             backgroundImage = null;
             draw();
-            saveSettings();
         }
 
         // Fonctions pour la piste
@@ -2960,7 +2906,6 @@
             img.onload = function() {
                 trackImage = img;
                 fitTrackImage();
-                saveSettings();
             };
             img.onerror = function() {
                 alert("❌ Erreur de chargement de l'image");
@@ -2977,7 +2922,6 @@
                 img.onload = function() {
                     trackImage = img;
                     fitTrackImage();
-                    saveSettings();
                 };
                 img.src = e.target.result;
             };
@@ -3002,7 +2946,6 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             draw();
-            saveSettings();
         }
 
         function adjustTrackScale(delta) {
@@ -3011,7 +2954,6 @@
             trackScale = Math.max(0.1, trackScale + delta);
             document.getElementById('scale-display').innerText = trackScale.toFixed(2);
             draw();
-            saveSettings();
         }
 
         function adjustTrackWidth(delta) {
@@ -3019,7 +2961,6 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             useCustomSize = true;
             draw();
-            saveSettings();
         }
 
         function adjustTrackHeight(delta) {
@@ -3027,7 +2968,6 @@
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             useCustomSize = true;
             draw();
-            saveSettings();
         }
 
         function resetTrackSize() {
@@ -3040,7 +2980,6 @@
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             draw();
-            saveSettings();
         }
 
         function adjustOffsetY(delta) {
@@ -3050,7 +2989,6 @@
                 generateDefaultPath();
             }
             draw();
-            saveSettings();
         }
 
         function adjustRows(delta) {
@@ -3060,13 +2998,11 @@
                 generateDefaultPath();
             }
             draw();
-            saveSettings();
         }
 
         function clearTrackImage() {
             trackImage = null;
             draw();
-            saveSettings();
         }
 
         function toggleDebug() {
@@ -3084,10 +3020,9 @@
             }
             
             draw();
-            saveSettings();
         }
 
-        // Gestion du drag pour piste/fond/chemin/obstacles
+        // Gestion du drag
         function startDrag(e) {
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
@@ -3129,7 +3064,6 @@
                     pointEl.style.top = (pathNodes[draggingNode].y - 12) + 'px';
                 }
             } else if (dragMode === 'obstacle' && draggingObstacle !== null) {
-                // Trouver le point le plus proche sur le chemin
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
@@ -3174,10 +3108,8 @@
             isDraggingBackground = false;
             if (dragMode === 'path') {
                 draggingNode = null;
-                saveSettings();
             } else if (dragMode === 'obstacle') {
                 draggingObstacle = null;
-                saveSettings();
             }
             canvas.classList.remove('dragging');
         }
@@ -3187,7 +3119,6 @@
             if (!backgroundImage) return;
             
             ctx.save();
-            
             if (backgroundBlur > 0) {
                 ctx.filter = `blur(${backgroundBlur}px)`;
             }
@@ -3197,7 +3128,6 @@
             
             ctx.globalAlpha = backgroundOpacity;
             ctx.drawImage(backgroundImage, backgroundX, backgroundY, imgWidth, imgHeight);
-            
             ctx.restore();
         }
 
@@ -3228,7 +3158,6 @@
             drawObstacles();
         }
 
-        // Calcul de position sur le chemin
         function getPositionOnPath(progress) {
             if (pathNodes.length < 2) return { x: 0, y: 0 };
             
@@ -3268,7 +3197,6 @@
             return length;
         }
 
-        // Dessin des joueurs
         function drawPlayers() {
             if (players.length === 0) return;
             
@@ -3277,7 +3205,6 @@
                 
                 const pos = getPositionOnPath(player.progress);
                 
-                // Effet visuel selon l'obstacle actif
                 if (Date.now() < player.effectEnd) {
                     ctx.save();
                     switch(player.effectType) {
@@ -3338,10 +3265,8 @@
             });
         }
 
-        // Dessin principal
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             drawBackground();
             drawTrack();
             drawPlayers();
@@ -3392,8 +3317,6 @@
                         message: 'Client web connecté',
                         timestamp: new Date().toISOString()
                     }));
-                    
-                    saveSettings();
                 };
                 
                 socket.onmessage = function(event) {
@@ -3413,7 +3336,6 @@
                     btn.innerText = "📡 Reconnecter";
                     btn.disabled = false;
                     socket = null;
-                    saveSettings();
                 };
                 
                 socket.onerror = function(error) {
@@ -3422,18 +3344,15 @@
                     statusDot.className = 'status-indicator status-off';
                     btn.innerText = "❌ Erreur - Réessayer";
                     btn.disabled = false;
-                    saveSettings();
                 };
                 
             } catch (error) {
                 console.error("❌ Erreur création WebSocket:", error);
                 btn.innerText = "❌ Erreur";
                 btn.disabled = false;
-                saveSettings();
             }
         }
 
-        // Gestion des messages du serveur
         function handleServerMessage(data) {
             switch(data.type) {
                 case 'SERVER_MESSAGE':
@@ -3447,7 +3366,6 @@
                 case 'SNAKE_JOIN_SUCCESS':
                     console.log("✅ Joueur ajouté:", data);
                     updatePlayerCount(data.currentPlayers, data.maxPlayers);
-                    saveSettings();
                     break;
                     
                 case 'SNAKE_PLAYER_ADDED':
@@ -3457,7 +3375,6 @@
                 case 'SNAKE_GAME_STARTING':
                     console.log("🚀 Jeu démarré avec", data.players.length, "joueurs");
                     startGame();
-                    saveSettings();
                     break;
                     
                 case 'SNAKE_UPDATE':
@@ -3471,13 +3388,11 @@
                 case 'SNAKE_GAME_END':
                     console.log("🎮 Jeu terminé ! Classement:", data.rankings);
                     showFinalResults(data.rankings);
-                    saveSettings();
                     break;
                     
                 case 'SNAKE_GAME_RESET':
                     console.log("🔄 Jeu réinitialisé");
                     resetGame();
-                    saveSettings();
                     break;
                     
                 case 'PONG':
@@ -3507,7 +3422,6 @@
             }
         }
 
-        // Mettre à jour l'état du jeu
         function updateGameState(serverPlayers) {
             if (!isRacing) return;
             
@@ -3570,19 +3484,16 @@
             return true;
         }
 
-        // Ajouter un joueur
         function addPlayerToGame(name, fromServer = false) {
             if (isRacing) {
                 waitingQueue.push(name);
                 updateQueueDisplay();
-                saveSettings();
                 return;
             }
             
-            if (registeredNames.length >= MAX_PLAYERS) {
+            if (registeredNames.length >= MAX_PLAYERS_CAPACITY) {
                 waitingQueue.push(name);
                 updateQueueDisplay();
-                saveSettings();
                 return;
             }
             
@@ -3598,7 +3509,6 @@
             draw();
             renderPlayerList();
             checkAutoStart();
-            saveSettings();
         }
 
         // Fonctions d'interface
@@ -3613,7 +3523,6 @@
                 panel.style.display = 'none';
                 restoreBtn.classList.remove('hidden');
             }
-            saveSettings();
         }
 
         function addPlayerManual() {
@@ -3634,7 +3543,7 @@
         function startTestGame() {
             if (isRacing) return;
             
-            const neededPlayers = MAX_PLAYERS - registeredNames.length;
+            const neededPlayers = requiredPlayers - registeredNames.length;
             if (neededPlayers <= 0) return;
             
             const count = Math.min(neededPlayers, 5);
@@ -3677,7 +3586,7 @@
                 });
             }
             
-            document.getElementById('player-count-display').innerText = `${registeredNames.length}/${MAX_PLAYERS}`;
+            document.getElementById('player-count-display').innerText = `${registeredNames.length}/${requiredPlayers}`;
         }
 
         function resetRegistrations() {
@@ -3695,29 +3604,29 @@
             updateQueueDisplay();
             draw();
             checkAutoStart();
-            saveSettings();
         }
 
         function checkAutoStart() {
-            const btn = document.getElementById('btn-launch-game');
+            updateThresholdDisplay();
+            updateLaunchButtonText();
             
-            if (registeredNames.length >= MAX_PLAYERS) {
-                btn.innerHTML = "🚀 AUTO !";
-                setTimeout(startGame, 1000);
-            } else if (registeredNames.length > 1) {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                btn.innerHTML = `Lancer (${registeredNames.length})`;
-            } else {
-                btn.disabled = true;
-                btn.classList.add('opacity-50');
-                btn.innerHTML = "Attente...";
+            if (autoStartEnabled && registeredNames.length >= requiredPlayers) {
+                setTimeout(() => {
+                    if (autoStartEnabled && registeredNames.length >= requiredPlayers && !isRacing) {
+                        forceStart();
+                    }
+                }, 1000);
             }
         }
 
         function forceStart() {
             if (registeredNames.length < 2) {
                 alert("Il faut au moins 2 joueurs !");
+                return;
+            }
+            
+            if (registeredNames.length < requiredPlayers) {
+                alert(`Il faut au moins ${requiredPlayers} joueurs pour lancer la course !`);
                 return;
             }
             
@@ -3736,7 +3645,7 @@
                 this.color = COLORS[id % COLORS.length];
                 this.progress = 0;
                 this.speedBase = 0.0001 + Math.random() * 0.0001;
-                this.laneOffset = (id - (MAX_PLAYERS / 2)) * 2.5;
+                this.laneOffset = (id - (MAX_PLAYERS_CAPACITY / 2)) * 2.5;
                 this.multiplier = 1;
                 this.effectEnd = 0;
                 this.effectType = null;
@@ -3751,7 +3660,6 @@
                         this.effectType = null;
                     }
                     
-                    // Vérifier les collisions avec les obstacles
                     checkObstacleCollision(this);
                     
                     this.progress += (this.speedBase + Math.random() * 0.0004) * this.multiplier;
@@ -3767,7 +3675,6 @@
             }
         }
 
-        // Canvas et dessin
         function resizeCanvas() {
             const container = document.getElementById('game-container');
             if (!container) return;
@@ -3780,11 +3687,9 @@
                     generateDefaultPath();
                 }
                 draw();
-                saveSettings();
             }
         }
 
-        // Mise à jour du jeu
         function update() {
             if (!isRacing || isPaused) return;
             
@@ -3843,7 +3748,6 @@
             isPaused = false;
             winner = null;
             
-            // Réactiver tous les obstacles
             obstacles.forEach(o => o.active = true);
             
             document.getElementById('winner-overlay').style.display = 'none';
@@ -3852,7 +3756,6 @@
             document.getElementById('leaderboard').style.display = 'block';
             document.getElementById('game-controls-panel').style.display = 'flex';
             
-            // Réinitialiser les boutons pause/play
             document.getElementById('pause-btn').classList.remove('hidden');
             document.getElementById('play-btn').classList.add('hidden');
             
@@ -3866,7 +3769,6 @@
             });
             
             update();
-            saveSettings();
         }
 
         function endGame(winningPlayer) {
@@ -3908,9 +3810,7 @@
             }
             
             updateHistoryDisplay();
-            
             startAutoRestart();
-            saveSettings();
         }
 
         function updateHistoryDisplay() {
@@ -3962,7 +3862,7 @@
             }
             
             const updateButtonText = () => {
-                if (waitingQueue.length >= MAX_PLAYERS) {
+                if (waitingQueue.length >= requiredPlayers) {
                     button.innerText = `Auto (${timeLeft}s) - File Pleine!`;
                 } else {
                     button.innerText = `Suivante (${timeLeft}s)`;
@@ -4006,20 +3906,18 @@
             registeredNames = [];
             players = [];
             
-            while (waitingQueue.length > 0 && registeredNames.length < MAX_PLAYERS) {
+            while (waitingQueue.length > 0 && registeredNames.length < requiredPlayers) {
                 const name = waitingQueue.shift();
                 registeredNames.push(name);
                 players.push(new Player(players.length, name));
             }
             
-            // Réactiver tous les obstacles
             obstacles.forEach(o => o.active = true);
             
             updateQueueDisplay();
             renderPlayerList();
             draw();
             checkAutoStart();
-            saveSettings();
         }
 
         // Démarrer l'application
