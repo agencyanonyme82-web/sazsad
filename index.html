@@ -585,6 +585,63 @@
         .obstacle-type-snail { background: #ea580c; }
         .obstacle-type-lightning { background: #fbbf24; }
         .obstacle-type-blackhole { background: #1f2937; }
+
+        .game-controls-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 30;
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            backdrop-filter: blur(5px);
+            border: 2px solid #e5e7eb;
+        }
+
+        .game-control-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .game-control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .game-control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .game-control-btn.pause {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+        }
+
+        .game-control-btn.play {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+        }
+
+        .game-control-btn.restart {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            color: white;
+        }
+
+        .game-control-btn.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -1029,6 +1086,19 @@
 
     <!-- Conteneur principal du jeu -->
     <div id="game-container">
+        <!-- Panneau de contrôle du jeu (pause/play/restart) -->
+        <div class="game-controls-panel" id="game-controls-panel">
+            <button onclick="pauseGame()" class="game-control-btn pause" id="pause-btn" title="Pause">
+                ⏸️
+            </button>
+            <button onclick="resumeGame()" class="game-control-btn play hidden" id="play-btn" title="Reprendre">
+                ▶️
+            </button>
+            <button onclick="restartGame()" class="game-control-btn restart" id="restart-btn" title="Redémarrer la course">
+                🔄
+            </button>
+        </div>
+
         <div id="winner-overlay">
             <h1 class="text-6xl text-yellow-400 mb-8 drop-shadow-lg animate-bounce">
                 🏆 VICTOIRE ! 🏆
@@ -1060,7 +1130,7 @@
                 <div class="leaderboard-header" id="leaderboard-header">
                     <span>🏁 Course en cours</span>
                     <button onclick="toggleLeaderboard()" class="close-btn" title="Masquer">
-                        <svg xmlns="http://www.w3.org2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
@@ -1106,6 +1176,7 @@
         let winnersHistory = [];
         let players = [];
         let isRacing = false;
+        let isPaused = false;
         let animationId = null;
         let winner = null;
         let socket = null;
@@ -1224,6 +1295,9 @@
             updatePathInfoDisplay();
             updateObstaclesDisplay();
             
+            // Initialiser le panneau de contrôle du jeu
+            document.getElementById('game-controls-panel').style.display = 'none';
+            
             // Charger les paramètres sauvegardés
             loadSettings();
             
@@ -1235,6 +1309,92 @@
             
             // Tester la connexion au serveur
             setTimeout(testServerConnection, 1000);
+        }
+
+        // FONCTIONS POUR LE CONTRÔLE DU JEU (PAUSE/PLAY/RESTART)
+        function pauseGame() {
+            if (!isRacing || isPaused) return;
+            
+            isPaused = true;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Mettre à jour les boutons
+            document.getElementById('pause-btn').classList.add('hidden');
+            document.getElementById('play-btn').classList.remove('hidden');
+            
+            // Ajouter un effet visuel de pause
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            ctx.font = 'bold 48px Arial';
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⏸️ PAUSE', canvas.width / 2, canvas.height / 2);
+            
+            console.log("Jeu en pause");
+        }
+
+        function resumeGame() {
+            if (!isRacing || !isPaused) return;
+            
+            isPaused = false;
+            
+            // Mettre à jour les boutons
+            document.getElementById('play-btn').classList.add('hidden');
+            document.getElementById('pause-btn').classList.remove('hidden');
+            
+            // Reprendre l'animation
+            update();
+            
+            console.log("Jeu repris");
+        }
+
+        function restartGame() {
+            if (!isRacing) return;
+            
+            if (confirm("Voulez-vous vraiment redémarrer la course en cours ?")) {
+                // Arrêter l'animation actuelle
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                
+                // Réinitialiser l'état du jeu
+                isPaused = false;
+                winner = null;
+                
+                // Réinitialiser tous les joueurs
+                players.forEach(player => {
+                    player.progress = 0;
+                    player.isFinished = false;
+                    player.finishTime = null;
+                    player.multiplier = 1;
+                    player.effectEnd = 0;
+                    player.effectType = null;
+                });
+                
+                // Réactiver tous les obstacles
+                obstacles.forEach(o => o.active = true);
+                
+                // Cacher l'overlay de victoire s'il est affiché
+                document.getElementById('winner-overlay').style.display = 'none';
+                
+                // Réinitialiser les boutons pause/play
+                document.getElementById('pause-btn').classList.remove('hidden');
+                document.getElementById('play-btn').classList.add('hidden');
+                
+                // Redémarrer la course
+                update();
+                
+                console.log("Course redémarrée");
+            }
         }
 
         // FONCTIONS POUR LES OBSTACLES
@@ -1613,7 +1773,7 @@
                 }
                 
                 // Effet de pulsation
-                if (isRacing) {
+                if (isRacing && !isPaused) {
                     const pulse = Math.sin(Date.now() / 500) * 0.2 + 0.8;
                     ctx.globalAlpha = pulse;
                     
@@ -1925,6 +2085,7 @@
                 
                 // État du jeu
                 isRacing,
+                isPaused,
                 winner: winner ? {
                     name: winner.name,
                     color: winner.color
@@ -1936,7 +2097,7 @@
                 
                 // Méta-données
                 savedAt: new Date().toISOString(),
-                version: '2.3'
+                version: '2.4'
             };
         }
 
@@ -2193,6 +2354,11 @@
                 if (settings.leaderboardVisible !== undefined) {
                     const leaderboard = document.getElementById('leaderboard');
                     leaderboard.style.display = settings.leaderboardVisible ? 'block' : 'none';
+                }
+                
+                // Restaurer l'état de pause
+                if (settings.isPaused !== undefined) {
+                    isPaused = settings.isPaused;
                 }
                 
                 // Restaurer les images
@@ -2488,8 +2654,8 @@
             
             const pointEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
             if (pointEl) {
-                pointEl.style.left = (x - 12) + 'px';
-                pointEl.style.top = (y - 12) + 'px';
+                pointEl.style.left = (pathNodes[draggingNode].x - 12) + 'px';
+                pointEl.style.top = (pathNodes[draggingNode].y - 12) + 'px';
             }
             
             drawPathWithPoints();
@@ -3620,7 +3786,7 @@
 
         // Mise à jour du jeu
         function update() {
-            if (!isRacing) return;
+            if (!isRacing || isPaused) return;
             
             let finishedCount = 0;
             
@@ -3674,6 +3840,7 @@
             if (isRacing) return;
             
             isRacing = true;
+            isPaused = false;
             winner = null;
             
             // Réactiver tous les obstacles
@@ -3683,6 +3850,11 @@
             document.getElementById('setup-layer').style.display = 'none';
             document.getElementById('restore-btn').classList.remove('hidden');
             document.getElementById('leaderboard').style.display = 'block';
+            document.getElementById('game-controls-panel').style.display = 'flex';
+            
+            // Réinitialiser les boutons pause/play
+            document.getElementById('pause-btn').classList.remove('hidden');
+            document.getElementById('play-btn').classList.add('hidden');
             
             players.forEach(player => {
                 player.progress = 0;
@@ -3817,6 +3989,7 @@
             }
             
             isRacing = false;
+            isPaused = false;
             winner = null;
             
             if (animationId) {
@@ -3828,6 +4001,7 @@
             document.getElementById('setup-layer').style.display = 'flex';
             document.getElementById('restore-btn').classList.add('hidden');
             document.getElementById('leaderboard').style.display = 'block';
+            document.getElementById('game-controls-panel').style.display = 'none';
             
             registeredNames = [];
             players = [];
