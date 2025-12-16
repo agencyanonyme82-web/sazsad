@@ -650,6 +650,31 @@
             padding: 12px;
             margin-top: 12px;
         }
+
+        .number-input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 4px;
+            font-size: 0.875rem;
+            font-weight: bold;
+            font-family: 'Nunito', monospace;
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-manual-start {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+        }
+        
+        .btn-manual-start:hover {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+        }
     </style>
 </head>
 <body>
@@ -688,7 +713,10 @@
                         <span class="control-label">Joueurs requis</span>
                         <div class="flex gap-1">
                             <button onclick="adjustRequiredPlayers(-1)" class="control-button">-</button>
-                            <span id="required-players-display" class="text-xs w-10 text-center leading-6 font-mono font-bold">20</span>
+                            <input type="number" id="required-players-input" min="1" max="1000000" value="20" 
+                                   onchange="updateRequiredPlayersFromInput()" 
+                                   onblur="validateRequiredPlayersInput()"
+                                   class="number-input">
                             <button onclick="adjustRequiredPlayers(1)" class="control-button">+</button>
                         </div>
                     </div>
@@ -745,7 +773,13 @@
                     🤖 Remplir avec Bots
                 </button>
                 
-                <button id="btn-launch-game" onclick="forceStart()" disabled class="w-full btn btn-start py-3 text-lg transition-all duration-300 opacity-50 shadow-lg mb-4">
+                <!-- BOUTON : LANCER MANUELLEMENT MÊME SI PAS COMPLET -->
+                <button id="btn-launch-manual" onclick="manualStartGame()" class="w-full btn btn-manual-start py-2 text-lg transition-all duration-300 shadow-lg mb-2 flex items-center justify-center gap-2">
+                    🚀 Lancer maintenant
+                </button>
+                
+                <!-- BOUTON : LANCEMENT AUTO (ORIGINAL) -->
+                <button id="btn-launch-game" onclick="forceStart()" disabled class="w-full btn btn-start py-2 text-lg transition-all duration-300 opacity-50 shadow-lg mb-4">
                     Lancer (Auto à 20) ⏳
                 </button>
 
@@ -1305,6 +1339,7 @@
             window.addEventListener('mouseup', stopDrag);
             
             // Initialiser les affichages
+            document.getElementById('required-players-input').value = requiredPlayers;
             document.getElementById('width-display').innerText = `${trackWidthPercent}%`;
             document.getElementById('height-display').innerText = `${trackHeightPercent}%`;
             document.getElementById('bg-opacity-display').innerText = backgroundOpacity.toFixed(1);
@@ -1337,6 +1372,9 @@
             // Initialiser l'affichage du seuil
             updateThresholdDisplay();
             
+            // Mettre à jour les boutons de lancement
+            updateLaunchButtons();
+            
             // Charger les paramètres sauvegardés
             loadSettings();
             
@@ -1347,11 +1385,75 @@
             setTimeout(testServerConnection, 1000);
         }
 
+        // NOUVELLE FONCTION : Lancer manuellement la course
+        function manualStartGame() {
+            if (isRacing) {
+                alert("Une course est déjà en cours !");
+                return;
+            }
+            
+            if (registeredNames.length < 1) {
+                alert("Ajoutez au moins un joueur pour démarrer la course !");
+                return;
+            }
+            
+            if (pathNodes.length < 2) {
+                alert("Veuillez configurer un chemin valide (au moins 2 points) !");
+                return;
+            }
+            
+            const confirmed = confirm(`Démarrer la course avec ${registeredNames.length} joueur(s) ?\n\nLe seuil est à ${requiredPlayers} joueurs mais vous pouvez démarrer maintenant.`);
+            
+            if (confirmed) {
+                startGame();
+            }
+        }
+
         // FONCTIONS POUR LE SEUIL DE LANCEMENT
         function adjustRequiredPlayers(delta) {
             requiredPlayers = Math.max(1, Math.min(MAX_PLAYERS_CAPACITY, requiredPlayers + delta));
+            updateRequiredPlayersInput();
             updateThresholdDisplay();
+            updateLaunchButtons();
             checkAutoStart();
+        }
+
+        function updateRequiredPlayersFromInput() {
+            const input = document.getElementById('required-players-input');
+            let value = parseInt(input.value);
+            
+            if (isNaN(value) || value < 1) {
+                value = 1;
+            } else if (value > MAX_PLAYERS_CAPACITY) {
+                value = MAX_PLAYERS_CAPACITY;
+            }
+            
+            requiredPlayers = value;
+            input.value = requiredPlayers;
+            updateThresholdDisplay();
+            updateLaunchButtons();
+            checkAutoStart();
+        }
+
+        function validateRequiredPlayersInput() {
+            const input = document.getElementById('required-players-input');
+            let value = parseInt(input.value);
+            
+            if (isNaN(value) || value < 1) {
+                value = 1;
+            } else if (value > MAX_PLAYERS_CAPACITY) {
+                value = MAX_PLAYERS_CAPACITY;
+            }
+            
+            requiredPlayers = value;
+            input.value = requiredPlayers;
+            updateThresholdDisplay();
+            updateLaunchButtons();
+            checkAutoStart();
+        }
+
+        function updateRequiredPlayersInput() {
+            document.getElementById('required-players-input').value = requiredPlayers;
         }
 
         function toggleAutoStart() {
@@ -1361,11 +1463,11 @@
             btn.style.background = autoStartEnabled ? '#22c55e' : '#f3f4f6';
             btn.style.color = autoStartEnabled ? 'white' : '#6b7280';
             updateThresholdDisplay();
+            updateLaunchButtons();
             checkAutoStart();
         }
 
         function updateThresholdDisplay() {
-            document.getElementById('required-players-display').innerText = requiredPlayers;
             document.getElementById('max-players-display').innerText = requiredPlayers;
             
             const currentPlayers = registeredNames.length;
@@ -1382,27 +1484,38 @@
             
             autoStatusEl.textContent = autoStartEnabled ? 'Actif' : 'Inactif';
             autoStatusEl.style.color = autoStartEnabled ? '#10b981' : '#6b7280';
-            
-            // Mettre à jour le texte du bouton de lancement
-            updateLaunchButtonText();
         }
 
-        function updateLaunchButtonText() {
-            const btn = document.getElementById('btn-launch-game');
+        // NOUVELLE FONCTION : Mettre à jour les boutons de lancement
+        function updateLaunchButtons() {
             const currentPlayers = registeredNames.length;
+            const btnAuto = document.getElementById('btn-launch-game');
+            const btnManual = document.getElementById('btn-launch-manual');
             
+            // Bouton lancement auto (seuil)
             if (currentPlayers >= requiredPlayers) {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                btn.innerHTML = `🚀 Lancer (${currentPlayers}/${requiredPlayers})`;
+                btnAuto.disabled = false;
+                btnAuto.classList.remove('opacity-50');
+                btnAuto.innerHTML = `🚀 Lancer (${currentPlayers}/${requiredPlayers})`;
             } else if (currentPlayers > 1) {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                btn.innerHTML = `Lancer (${currentPlayers}/${requiredPlayers})`;
+                btnAuto.disabled = false;
+                btnAuto.classList.remove('opacity-50');
+                btnAuto.innerHTML = `Lancer (${currentPlayers}/${requiredPlayers})`;
             } else {
-                btn.disabled = true;
-                btn.classList.add('opacity-50');
-                btn.innerHTML = `Attente... (${currentPlayers}/${requiredPlayers})`;
+                btnAuto.disabled = true;
+                btnAuto.classList.add('opacity-50');
+                btnAuto.innerHTML = `Attente... (${currentPlayers}/${requiredPlayers})`;
+            }
+            
+            // Bouton lancement manuel
+            if (currentPlayers >= 1) {
+                btnManual.disabled = false;
+                btnManual.classList.remove('opacity-50');
+                btnManual.innerHTML = `🚀 Lancer maintenant (${currentPlayers})`;
+            } else {
+                btnManual.disabled = true;
+                btnManual.classList.add('opacity-50');
+                btnManual.innerHTML = '🚀 Ajoutez un joueur';
             }
         }
 
@@ -2135,7 +2248,7 @@
                 trackUrl: document.getElementById('track-url-input').value,
                 backgroundUrl: document.getElementById('background-url-input').value,
                 savedAt: new Date().toISOString(),
-                version: '2.5'
+                version: '2.6'
             };
         }
 
@@ -2207,6 +2320,7 @@
                 
                 if (settings.requiredPlayers !== undefined) {
                     requiredPlayers = settings.requiredPlayers;
+                    document.getElementById('required-players-input').value = requiredPlayers;
                 }
                 if (settings.autoStartEnabled !== undefined) {
                     autoStartEnabled = settings.autoStartEnabled;
@@ -2448,6 +2562,7 @@
                 }
                 
                 updateThresholdDisplay();
+                updateLaunchButtons();
                 renderPlayerList();
                 updateHistoryDisplay();
                 updateQueueDisplay();
@@ -3508,6 +3623,7 @@
             
             draw();
             renderPlayerList();
+            updateLaunchButtons();
             checkAutoStart();
         }
 
@@ -3602,13 +3718,13 @@
             
             renderPlayerList();
             updateQueueDisplay();
+            updateLaunchButtons();
             draw();
             checkAutoStart();
         }
 
         function checkAutoStart() {
             updateThresholdDisplay();
-            updateLaunchButtonText();
             
             if (autoStartEnabled && registeredNames.length >= requiredPlayers) {
                 setTimeout(() => {
@@ -3626,8 +3742,9 @@
             }
             
             if (registeredNames.length < requiredPlayers) {
-                alert(`Il faut au moins ${requiredPlayers} joueurs pour lancer la course !`);
-                return;
+                if (!confirm(`Le seuil est à ${requiredPlayers} joueurs, mais vous n'en avez que ${registeredNames.length}.\nVoulez-vous quand même démarrer la course ?`)) {
+                    return;
+                }
             }
             
             if (socket && socket.readyState === WebSocket.OPEN) {
@@ -3916,6 +4033,7 @@
             
             updateQueueDisplay();
             renderPlayerList();
+            updateLaunchButtons();
             draw();
             checkAutoStart();
         }
