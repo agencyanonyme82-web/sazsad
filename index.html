@@ -30,7 +30,7 @@
         #setup-layer { 
             position: absolute; 
             top: 20px; 
-            left: 20px; 
+            right: 20px; 
             z-index: 100; 
             display: flex; 
             flex-direction: column; 
@@ -186,10 +186,15 @@
             100% { transform: scale(1); opacity: 1; } 
         }
 
-        #leaderboard { 
+        #leaderboard-container { 
             position: absolute; 
             top: 20px; 
-            right: 20px; 
+            left: 20px; 
+            z-index: 20; 
+            cursor: move; 
+        }
+        
+        #leaderboard { 
             background: rgba(255, 255, 255, 0.98); 
             padding: 18px; 
             border-radius: 16px; 
@@ -198,12 +203,67 @@
             max-height: 320px; 
             width: 260px; 
             display: none; 
-            z-index: 20; 
             border: 2px solid #e5e7eb; 
         }
         
-        @media (min-width: 768px) { 
-            #leaderboard { display: block; } 
+        .leaderboard-header { 
+            background: linear-gradient(135deg, #8b5cf6, #a855f7); 
+            color: white; 
+            padding: 12px; 
+            border-radius: 12px 12px 0 0; 
+            font-weight: bold; 
+            text-align: center; 
+            cursor: move; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        
+        .leaderboard-content { 
+            padding: 12px; 
+            max-height: 250px; 
+            overflow-y: auto; 
+        }
+        
+        .leaderboard-row { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            padding: 6px 0; 
+            border-bottom: 1px solid #f3f4f6; 
+        }
+        
+        .leaderboard-row:last-child { 
+            border-bottom: none; 
+        }
+        
+        .leaderboard-rank { 
+            font-weight: bold; 
+            color: #6b7280; 
+            width: 24px; 
+            text-align: center; 
+        }
+        
+        .leaderboard-color { 
+            width: 10px; 
+            height: 10px; 
+            border-radius: 50%; 
+        }
+        
+        .leaderboard-name { 
+            flex: 1; 
+            font-weight: bold; 
+            color: #374151; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+        }
+        
+        .leaderboard-progress { 
+            font-size: 0.8rem; 
+            color: #6b7280; 
+            min-width: 40px; 
+            text-align: right; 
         }
         
         .status-indicator { 
@@ -478,6 +538,53 @@
             color: white;
             border-color: #2563eb;
         }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .obstacles-section {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .obstacle-marker {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: move;
+            z-index: 45;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .obstacle-type-snail { background: #ea580c; }
+        .obstacle-type-lightning { background: #fbbf24; }
+        .obstacle-type-blackhole { background: #1f2937; }
     </style>
 </head>
 <body>
@@ -487,6 +594,7 @@
         </svg>
     </button>
 
+    <!-- Panneau de contrôle principal -->
     <div id="setup-layer">
         <div id="draggable-panel">
             <div class="panel-header" id="panel-header-drag">
@@ -550,7 +658,7 @@
                     Lancer (Auto à 20) ⏳
                 </button>
 
-                <!-- NOUVELLE SECTION : STYLE DES NOMS DES JOUEURS -->
+                <!-- SECTION : STYLE DES NOMS DES JOUEURS -->
                 <div class="player-name-section">
                     <h3 class="text-xs text-pink-600 mb-2 uppercase tracking-wide">🎯 Style des Noms</h3>
                     
@@ -633,6 +741,62 @@
                         <button onclick="resetNameSettings()" class="text-xs text-gray-400 hover:text-red-500 underline">
                             Réinitialiser
                         </button>
+                    </div>
+                </div>
+
+                <!-- SECTION : OBSTACLES -->
+                <div class="obstacles-section">
+                    <h3 class="text-xs text-amber-600 mb-2 uppercase tracking-wide">⚠️ OBSTACLES</h3>
+                    
+                    <div class="control-row">
+                        <span class="control-label">Fréquence</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustObstacleFrequency(-1)" class="control-button">-</button>
+                            <span id="obstacle-freq-display" class="text-xs w-10 text-center leading-6 font-mono font-bold">3</span>
+                            <button onclick="adjustObstacleFrequency(1)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Durée (s)</span>
+                        <div class="flex gap-1">
+                            <button onclick="adjustObstacleDuration(-0.5)" class="control-button">-</button>
+                            <span id="obstacle-duration-display" class="text-xs w-10 text-center leading-6 font-mono">3.0</span>
+                            <button onclick="adjustObstacleDuration(0.5)" class="control-button">+</button>
+                        </div>
+                    </div>
+
+                    <div class="control-row">
+                        <span class="control-label">Activer</span>
+                        <div class="flex gap-1">
+                            <button onclick="toggleObstacles()" class="control-button text-xs" id="btn-obstacles">ON</button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mt-2 justify-center">
+                        <button onclick="addObstacle('snail')" class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded-full border border-orange-600 transition-colors flex items-center gap-1">
+                            🐌 Ralentisseur
+                        </button>
+                        <button onclick="addObstacle('lightning')" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-full border border-yellow-600 transition-colors flex items-center gap-1">
+                            ⚡ Accélérateur
+                        </button>
+                        <button onclick="addObstacle('blackhole')" class="text-xs bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded-full border border-gray-900 transition-colors flex items-center gap-1">
+                            ⚫ Trou Noir
+                        </button>
+                    </div>
+
+                    <div class="mt-2 text-center">
+                        <button onclick="clearAllObstacles()" class="text-xs text-red-500 hover:text-red-700 underline mr-2">
+                            Supprimer tout
+                        </button>
+                        <button onclick="autoGenerateObstacles()" class="text-xs text-blue-500 hover:text-blue-700 underline">
+                            Générer auto
+                        </button>
+                    </div>
+
+                    <div id="obstacles-info" class="text-xs text-center mt-2 bg-amber-50 p-2 rounded border border-amber-200">
+                        <div class="font-bold text-amber-700">Obstacles: <span id="obstacles-count">0</span></div>
+                        <div class="text-amber-500 text-[10px]" id="obstacles-status">✅ Ajoutez des obstacles</div>
                     </div>
                 </div>
 
@@ -863,6 +1027,7 @@
         </div>
     </div>
 
+    <!-- Conteneur principal du jeu -->
     <div id="game-container">
         <div id="winner-overlay">
             <h1 class="text-6xl text-yellow-400 mb-8 drop-shadow-lg animate-bounce">
@@ -889,11 +1054,23 @@
             </div>
         </div>
         
-        <div id="leaderboard">
-            <h3 class="font-bold border-b mb-2 pb-1 text-center text-green-700">
-                Course en cours
-            </h3>
-            <div id="leader-list"></div>
+        <!-- Panneau "Course en cours" déplaçable -->
+        <div id="leaderboard-container">
+            <div id="leaderboard">
+                <div class="leaderboard-header" id="leaderboard-header">
+                    <span>🏁 Course en cours</span>
+                    <button onclick="toggleLeaderboard()" class="close-btn" title="Masquer">
+                        <svg xmlns="http://www.w3.org2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="leaderboard-content" id="leader-list">
+                    <div class="text-center text-gray-400 text-sm py-8">
+                        Course en attente...
+                    </div>
+                </div>
+            </div>
         </div>
         
         <canvas id="raceCanvas"></canvas>
@@ -968,25 +1145,33 @@
         let saveThrottleTimeout = null;
         let autoSaveInterval = null;
 
-        // NOUVELLES VARIABLES POUR LE STYLE DES NOMS
-        let playerNameSize = 19; // Taille de police augmentée à 19px
-        let playerNameColor = '#ffffff'; // Couleur du texte
-        let playerNameShadowColor = '#000000'; // Couleur de l'ombre
-        let playerNameShadowBlur = 4; // Flou de l'ombre
-        let playerNameShadowOffset = 1.0; // Décalage de l'ombre
-        let playerNameFontFamily = 'Nunito'; // Police par défaut
-        let playerNameFontWeight = 'bold'; // Gras activé par défaut
-        let playerNameFontStyle = 'normal'; // Pas d'italique par défaut
-        let playerNameTextTransform = 'none'; // Pas de majuscules par défaut
+        // Variables pour le style des noms
+        let playerNameSize = 19;
+        let playerNameColor = '#ffffff';
+        let playerNameShadowColor = '#000000';
+        let playerNameShadowBlur = 4;
+        let playerNameShadowOffset = 1.0;
+        let playerNameFontFamily = 'Nunito';
+        let playerNameFontWeight = 'bold';
+        let playerNameFontStyle = 'normal';
+        let playerNameTextTransform = 'none';
 
-        // Variables de drag
+        // Variables pour les obstacles
+        let obstacles = [];
+        let obstaclesEnabled = true;
+        let obstacleFrequency = 3; // Nombre moyen d'obstacles
+        let obstacleDuration = 3.0; // Durée en secondes
+        let draggingObstacle = null;
+
+        // Variables de drag pour les panneaux
+        let isDraggingPanel = false;
+        let isDraggingLeaderboard = false;
         let isDraggingTrack = false;
         let isDraggingBackground = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
         let dragMode = 'track';
         
-        let isDraggingPanel = false;
         let startX = 0;
         let startY = 0;
         let startLeft = 0;
@@ -999,9 +1184,13 @@
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
             
-            // Setup drag pour le panel
+            // Setup drag pour le panel principal
             const dragHandle = document.getElementById('panel-header-drag');
             dragHandle.addEventListener('mousedown', startPanelDrag);
+            
+            // Setup drag pour le leaderboard
+            const leaderboardHeader = document.getElementById('leaderboard-header');
+            leaderboardHeader.addEventListener('mousedown', startLeaderboardDrag);
             
             // Setup drag pour la piste, fond et chemin
             canvas.addEventListener('mousedown', startDrag);
@@ -1016,6 +1205,8 @@
             document.getElementById('path-width-display').innerText = `${pathWidth}px`;
             document.getElementById('path-padding-display').innerText = `${pathPadding}px`;
             document.getElementById('path-curve-display').innerText = `${pathCurve}px`;
+            document.getElementById('obstacle-freq-display').innerText = obstacleFrequency;
+            document.getElementById('obstacle-duration-display').innerText = obstacleDuration.toFixed(1);
             
             // Initialiser les affichages pour les noms
             document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
@@ -1031,6 +1222,7 @@
             // Initialiser les nœuds du chemin
             generateDefaultPath();
             updatePathInfoDisplay();
+            updateObstaclesDisplay();
             
             // Charger les paramètres sauvegardés
             loadSettings();
@@ -1045,7 +1237,476 @@
             setTimeout(testServerConnection, 1000);
         }
 
-        // NOUVELLES FONCTIONS POUR LE STYLE DES NOMS
+        // FONCTIONS POUR LES OBSTACLES
+
+        // Fonctions pour ajuster les paramètres des obstacles
+        function adjustObstacleFrequency(delta) {
+            obstacleFrequency = Math.max(0, Math.min(10, obstacleFrequency + delta));
+            document.getElementById('obstacle-freq-display').innerText = obstacleFrequency;
+            saveSettings();
+        }
+
+        function adjustObstacleDuration(delta) {
+            obstacleDuration = Math.max(0.5, Math.min(10, obstacleDuration + delta));
+            document.getElementById('obstacle-duration-display').innerText = obstacleDuration.toFixed(1);
+            saveSettings();
+        }
+
+        function toggleObstacles() {
+            obstaclesEnabled = !obstaclesEnabled;
+            const btn = document.getElementById('btn-obstacles');
+            btn.innerText = obstaclesEnabled ? 'ON' : 'OFF';
+            btn.style.background = obstaclesEnabled ? '#22c55e' : '#f3f4f6';
+            btn.style.color = obstaclesEnabled ? 'white' : '#6b7280';
+            draw();
+            saveSettings();
+        }
+
+        function addObstacle(type) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            const obstacle = {
+                id: Date.now() + Math.random(),
+                type: type,
+                x: centerX,
+                y: centerY,
+                progress: Math.random() * 0.8 + 0.1, // Position sur le chemin
+                width: 30,
+                height: 30,
+                effectValue: getObstacleEffectValue(type),
+                active: true
+            };
+            
+            obstacles.push(obstacle);
+            updateObstaclePosition(obstacle);
+            showAllObstacles();
+            updateObstaclesDisplay();
+            draw();
+            saveSettings();
+        }
+
+        function getObstacleEffectValue(type) {
+            switch(type) {
+                case 'snail': return 0.3; // Ralentissement à 30% de la vitesse
+                case 'lightning': return 2.0; // Accélération x2
+                case 'blackhole': return 0; // Retour au début
+                default: return 1.0;
+            }
+        }
+
+        function updateObstaclePosition(obstacle) {
+            const pos = getPositionOnPath(obstacle.progress);
+            obstacle.x = pos.x;
+            obstacle.y = pos.y;
+        }
+
+        function showAllObstacles() {
+            hideAllObstacles();
+            
+            obstacles.forEach((obstacle, index) => {
+                const markerEl = document.createElement('div');
+                markerEl.className = `obstacle-marker obstacle-type-${obstacle.type}`;
+                markerEl.style.left = (obstacle.x - 10) + 'px';
+                markerEl.style.top = (obstacle.y - 10) + 'px';
+                markerEl.dataset.id = obstacle.id;
+                markerEl.dataset.index = index;
+                
+                // Ajouter l'icône
+                switch(obstacle.type) {
+                    case 'snail': markerEl.innerHTML = '🐌'; break;
+                    case 'lightning': markerEl.innerHTML = '⚡'; break;
+                    case 'blackhole': markerEl.innerHTML = '⚫'; break;
+                }
+                
+                markerEl.title = getObstacleTitle(obstacle.type);
+                
+                markerEl.addEventListener('mousedown', startObstacleDrag);
+                
+                document.getElementById('game-container').appendChild(markerEl);
+            });
+        }
+
+        function hideAllObstacles() {
+            document.querySelectorAll('.obstacle-marker').forEach(marker => marker.remove());
+        }
+
+        function getObstacleTitle(type) {
+            switch(type) {
+                case 'snail': return 'Ralentisseur (30% vitesse)';
+                case 'lightning': return 'Accélérateur (x2 vitesse)';
+                case 'blackhole': return 'Trou Noir (retour au début)';
+                default: return 'Obstacle';
+            }
+        }
+
+        function startObstacleDrag(e) {
+            const id = e.target.dataset.id;
+            draggingObstacle = obstacles.find(o => o.id == id);
+            if (!draggingObstacle) return;
+            
+            dragMode = 'obstacle';
+            e.target.style.opacity = '0.8';
+            e.target.style.transform = 'scale(1.2)';
+            document.addEventListener('mousemove', updateObstacleDragPosition);
+            document.addEventListener('mouseup', stopObstacleDrag);
+        }
+
+        function updateObstacleDragPosition(e) {
+            if (!draggingObstacle) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Trouver le point le plus proche sur le chemin
+            let closestProgress = draggingObstacle.progress;
+            let minDistance = Infinity;
+            
+            for (let i = 0; i <= 100; i++) {
+                const progress = i / 100;
+                const pos = getPositionOnPath(progress);
+                const distance = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestProgress = progress;
+                }
+            }
+            
+            draggingObstacle.progress = closestProgress;
+            updateObstaclePosition(draggingObstacle);
+            
+            const markerEl = document.querySelector(`.obstacle-marker[data-id="${draggingObstacle.id}"]`);
+            if (markerEl) {
+                markerEl.style.left = (draggingObstacle.x - 10) + 'px';
+                markerEl.style.top = (draggingObstacle.y - 10) + 'px';
+            }
+            
+            drawObstacles();
+        }
+
+        function stopObstacleDrag() {
+            if (draggingObstacle) {
+                draggingObstacle = null;
+                document.querySelectorAll('.obstacle-marker').forEach(marker => {
+                    marker.style.opacity = '';
+                    marker.style.transform = '';
+                });
+            }
+            document.removeEventListener('mousemove', updateObstacleDragPosition);
+            document.removeEventListener('mouseup', stopObstacleDrag);
+            saveSettings();
+        }
+
+        function clearAllObstacles() {
+            if (confirm("Voulez-vous vraiment supprimer tous les obstacles ?")) {
+                obstacles = [];
+                hideAllObstacles();
+                updateObstaclesDisplay();
+                draw();
+                saveSettings();
+            }
+        }
+
+        function autoGenerateObstacles() {
+            if (pathNodes.length < 2) {
+                alert("Veuillez d'abord créer un chemin valide !");
+                return;
+            }
+            
+            obstacles = [];
+            
+            // Générer des obstacles aléatoirement sur le chemin
+            const numObstacles = obstacleFrequency;
+            const obstacleTypes = ['snail', 'lightning', 'blackhole'];
+            
+            for (let i = 0; i < numObstacles; i++) {
+                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                const progress = 0.1 + (Math.random() * 0.8); // Éviter les extrémités
+                
+                const obstacle = {
+                    id: Date.now() + Math.random() + i,
+                    type: type,
+                    x: 0,
+                    y: 0,
+                    progress: progress,
+                    width: 30,
+                    height: 30,
+                    effectValue: getObstacleEffectValue(type),
+                    active: true
+                };
+                
+                updateObstaclePosition(obstacle);
+                obstacles.push(obstacle);
+            }
+            
+            showAllObstacles();
+            updateObstaclesDisplay();
+            draw();
+            saveSettings();
+        }
+
+        function updateObstaclesDisplay() {
+            const count = obstacles.length;
+            document.getElementById('obstacles-count').textContent = count;
+            
+            const statusEl = document.getElementById('obstacles-status');
+            if (count > 0) {
+                statusEl.textContent = `✅ ${count} obstacle(s) placé(s)`;
+                statusEl.style.color = '#10b981';
+            } else {
+                statusEl.textContent = '⚠️ Ajoutez des obstacles';
+                statusEl.style.color = '#ea580c';
+            }
+        }
+
+        function checkObstacleCollision(player) {
+            if (!obstaclesEnabled) return false;
+            
+            const playerPos = getPositionOnPath(player.progress);
+            let collisionDetected = false;
+            
+            obstacles.forEach(obstacle => {
+                if (!obstacle.active) return;
+                
+                const distance = Math.sqrt(
+                    Math.pow(playerPos.x - obstacle.x, 2) + 
+                    Math.pow(playerPos.y - obstacle.y, 2)
+                );
+                
+                if (distance < 20) { // Distance de collision
+                    applyObstacleEffect(player, obstacle);
+                    obstacle.active = false; // Désactiver l'obstacle après collision
+                    collisionDetected = true;
+                    
+                    // Réactiver l'obstacle après un délai
+                    setTimeout(() => {
+                        obstacle.active = true;
+                    }, obstacleDuration * 1000);
+                }
+            });
+            
+            return collisionDetected;
+        }
+
+        function applyObstacleEffect(player, obstacle) {
+            switch(obstacle.type) {
+                case 'snail':
+                    player.multiplier = obstacle.effectValue; // Ralentissement
+                    player.effectEnd = Date.now() + (obstacleDuration * 1000);
+                    player.effectType = 'snail';
+                    break;
+                    
+                case 'lightning':
+                    player.multiplier = obstacle.effectValue; // Accélération
+                    player.effectEnd = Date.now() + (obstacleDuration * 1000);
+                    player.effectType = 'lightning';
+                    break;
+                    
+                case 'blackhole':
+                    player.progress = 0; // Retour au début
+                    player.multiplier = 1;
+                    player.effectEnd = 0;
+                    player.effectType = 'blackhole';
+                    break;
+            }
+            
+            // Animation visuelle
+            createObstacleEffect(player, obstacle.type);
+        }
+
+        function createObstacleEffect(player, type) {
+            const playerPos = getPositionOnPath(player.progress);
+            
+            // Créer un effet visuel
+            const effect = {
+                x: playerPos.x,
+                y: playerPos.y,
+                type: type,
+                life: 1.0,
+                maxLife: 1.0,
+                size: 20,
+                particles: []
+            };
+            
+            // Ajouter des particules
+            for (let i = 0; i < 10; i++) {
+                effect.particles.push({
+                    x: playerPos.x,
+                    y: playerPos.y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0
+                });
+            }
+            
+            // Animation de l'effet
+            function animateEffect() {
+                effect.life -= 0.05;
+                effect.size += 2;
+                
+                effect.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.1;
+                    p.vy += 0.2; // Gravité
+                });
+                
+                effect.particles = effect.particles.filter(p => p.life > 0);
+                
+                if (effect.life > 0 && effect.particles.length > 0) {
+                    requestAnimationFrame(animateEffect);
+                }
+                
+                draw(); // Redessiner
+            }
+            
+            animateEffect();
+        }
+
+        function drawObstacles() {
+            if (!obstaclesEnabled) return;
+            
+            obstacles.forEach(obstacle => {
+                if (!obstacle.active) return;
+                
+                ctx.save();
+                
+                // Dessiner l'obstacle
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, 15, 0, Math.PI * 2);
+                
+                switch(obstacle.type) {
+                    case 'snail':
+                        ctx.fillStyle = 'rgba(234, 88, 12, 0.8)';
+                        break;
+                    case 'lightning':
+                        ctx.fillStyle = 'rgba(251, 191, 36, 0.8)';
+                        break;
+                    case 'blackhole':
+                        ctx.fillStyle = 'rgba(31, 41, 55, 0.8)';
+                        break;
+                }
+                
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Dessiner l'icône
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'white';
+                
+                switch(obstacle.type) {
+                    case 'snail':
+                        ctx.fillText('🐌', obstacle.x, obstacle.y);
+                        break;
+                    case 'lightning':
+                        ctx.fillText('⚡', obstacle.x, obstacle.y);
+                        break;
+                    case 'blackhole':
+                        ctx.fillText('⚫', obstacle.x, obstacle.y);
+                        break;
+                }
+                
+                // Effet de pulsation
+                if (isRacing) {
+                    const pulse = Math.sin(Date.now() / 500) * 0.2 + 0.8;
+                    ctx.globalAlpha = pulse;
+                    
+                    // Aura
+                    ctx.beginPath();
+                    ctx.arc(obstacle.x, obstacle.y, 20, 0, Math.PI * 2);
+                    ctx.strokeStyle = obstacle.type === 'snail' ? '#ea580c' : 
+                                     obstacle.type === 'lightning' ? '#fbbf24' : '#1f2937';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            });
+        }
+
+        // Fonctions pour le drag du leaderboard
+        function startLeaderboardDrag(e) {
+            if (e.target.closest('button')) return;
+            
+            isDraggingLeaderboard = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const leaderboardContainer = document.getElementById('leaderboard-container');
+            startLeft = leaderboardContainer.offsetLeft;
+            startTop = leaderboardContainer.offsetTop;
+            
+            document.addEventListener('mousemove', onLeaderboardDrag);
+            document.addEventListener('mouseup', stopLeaderboardDrag);
+        }
+
+        function onLeaderboardDrag(e) {
+            if (!isDraggingLeaderboard) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            const leaderboardContainer = document.getElementById('leaderboard-container');
+            
+            leaderboardContainer.style.left = (startLeft + deltaX) + 'px';
+            leaderboardContainer.style.top = (startTop + deltaY) + 'px';
+        }
+
+        function stopLeaderboardDrag() {
+            isDraggingLeaderboard = false;
+            document.removeEventListener('mousemove', onLeaderboardDrag);
+            document.removeEventListener('mouseup', stopLeaderboardDrag);
+            saveSettings();
+        }
+
+        function toggleLeaderboard() {
+            const leaderboard = document.getElementById('leaderboard');
+            if (leaderboard.style.display === 'none') {
+                leaderboard.style.display = 'block';
+            } else {
+                leaderboard.style.display = 'none';
+            }
+            saveSettings();
+        }
+
+        // Fonctions pour le drag du panel principal
+        function startPanelDrag(e) {
+            if (e.target.closest('button')) return;
+            
+            isDraggingPanel = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const setupLayer = document.getElementById('setup-layer');
+            startLeft = setupLayer.offsetLeft;
+            startTop = setupLayer.offsetTop;
+            
+            document.addEventListener('mousemove', onPanelDrag);
+            document.addEventListener('mouseup', stopPanelDrag);
+        }
+
+        function onPanelDrag(e) {
+            if (!isDraggingPanel) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            const setupLayer = document.getElementById('setup-layer');
+            
+            setupLayer.style.left = (startLeft + deltaX) + 'px';
+            setupLayer.style.top = (startTop + deltaY) + 'px';
+        }
+
+        function stopPanelDrag() {
+            isDraggingPanel = false;
+            document.removeEventListener('mousemove', onPanelDrag);
+            document.removeEventListener('mouseup', stopPanelDrag);
+            saveSettings();
+        }
+
+        // Fonctions pour le style des noms
         function adjustNameSize(delta) {
             playerNameSize = Math.max(8, Math.min(40, playerNameSize + delta));
             document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
@@ -1153,8 +1814,6 @@
             preview.style.fontStyle = playerNameFontStyle;
             preview.style.textTransform = playerNameTextTransform;
             preview.style.color = playerNameColor;
-            
-            // Afficher le nom de la police
             preview.textContent = `${playerNameFontFamily} AaBbCc`;
         }
 
@@ -1176,7 +1835,6 @@
             document.getElementById('shadow-offset-display').innerText = playerNameShadowOffset.toFixed(1);
             document.getElementById('font-family-select').value = playerNameFontFamily;
             
-            // Mettre à jour les boutons de style
             document.getElementById('btn-bold').classList.add('active');
             document.getElementById('btn-italic').classList.remove('active');
             document.getElementById('btn-uppercase').classList.remove('active');
@@ -1186,7 +1844,7 @@
             saveSettings();
         }
 
-        // SAUVEGARDE AUTOMATIQUE COMPLÈTE (MODIFIÉE POUR INCLURE LES NOUVELLES VARIABLES)
+        // Sauvegarde automatique complète
         function getFullSettings() {
             return {
                 // Paramètres du chemin
@@ -1198,7 +1856,19 @@
                 showPath,
                 pathNodes: pathNodes.map(node => ({ x: node.x, y: node.y })),
                 
-                // Paramètres des noms des joueurs (NOUVEAU)
+                // Paramètres des obstacles
+                obstacles: obstacles.map(o => ({
+                    id: o.id,
+                    type: o.type,
+                    progress: o.progress,
+                    effectValue: o.effectValue,
+                    active: o.active
+                })),
+                obstaclesEnabled,
+                obstacleFrequency,
+                obstacleDuration,
+                
+                // Paramètres des noms des joueurs
                 playerNameSize,
                 playerNameColor,
                 playerNameShadowColor,
@@ -1225,6 +1895,17 @@
                 backgroundScale,
                 backgroundX,
                 backgroundY,
+                
+                // Positions des panneaux
+                panelPosition: {
+                    left: document.getElementById('setup-layer').style.left,
+                    top: document.getElementById('setup-layer').style.top
+                },
+                leaderboardPosition: {
+                    left: document.getElementById('leaderboard-container').style.left,
+                    top: document.getElementById('leaderboard-container').style.top
+                },
+                leaderboardVisible: document.getElementById('leaderboard').style.display !== 'none',
                 
                 // Images (sous forme de DataURL si disponibles)
                 trackImageData: trackImage ? canvasToDataURL(trackImage) : null,
@@ -1255,7 +1936,7 @@
                 
                 // Méta-données
                 savedAt: new Date().toISOString(),
-                version: '2.1'
+                version: '2.3'
             };
         }
 
@@ -1296,7 +1977,6 @@
                     const settings = getFullSettings();
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
                     
-                    // Mettre à jour l'affichage du temps de sauvegarde
                     const now = new Date();
                     lastSaveTime = now;
                     document.getElementById('last-save-time').textContent = 
@@ -1306,7 +1986,6 @@
                     console.log("✅ Sauvegarde complète effectuée");
                 } catch (e) {
                     console.error("❌ Erreur sauvegarde:", e);
-                    // Essayer une sauvegarde légère sans images
                     try {
                         const lightSettings = getFullSettings();
                         lightSettings.trackImageData = null;
@@ -1366,7 +2045,41 @@
                     pathNodes = settings.pathNodes;
                 }
                 
-                // Restaurer les paramètres des noms des joueurs (NOUVEAU)
+                // Restaurer les paramètres des obstacles
+                if (settings.obstacles) {
+                    obstacles = settings.obstacles.map(o => {
+                        const obstacle = {
+                            id: o.id || Date.now() + Math.random(),
+                            type: o.type,
+                            x: 0,
+                            y: 0,
+                            progress: o.progress || 0.5,
+                            width: 30,
+                            height: 30,
+                            effectValue: o.effectValue || getObstacleEffectValue(o.type),
+                            active: o.active !== false
+                        };
+                        updateObstaclePosition(obstacle);
+                        return obstacle;
+                    });
+                }
+                if (settings.obstaclesEnabled !== undefined) {
+                    obstaclesEnabled = settings.obstaclesEnabled;
+                    const btn = document.getElementById('btn-obstacles');
+                    btn.innerText = obstaclesEnabled ? 'ON' : 'OFF';
+                    btn.style.background = obstaclesEnabled ? '#22c55e' : '#f3f4f6';
+                    btn.style.color = obstaclesEnabled ? 'white' : '#6b7280';
+                }
+                if (settings.obstacleFrequency !== undefined) {
+                    obstacleFrequency = settings.obstacleFrequency;
+                    document.getElementById('obstacle-freq-display').innerText = obstacleFrequency;
+                }
+                if (settings.obstacleDuration !== undefined) {
+                    obstacleDuration = settings.obstacleDuration;
+                    document.getElementById('obstacle-duration-display').innerText = obstacleDuration.toFixed(1);
+                }
+                
+                // Restaurer les paramètres des noms des joueurs
                 if (settings.playerNameSize !== undefined) {
                     playerNameSize = settings.playerNameSize;
                     document.getElementById('name-size-display').innerText = `${playerNameSize}px`;
@@ -1464,6 +2177,24 @@
                 if (settings.backgroundX !== undefined) backgroundX = settings.backgroundX;
                 if (settings.backgroundY !== undefined) backgroundY = settings.backgroundY;
                 
+                // Restaurer les positions des panneaux
+                if (settings.panelPosition) {
+                    const setupLayer = document.getElementById('setup-layer');
+                    if (settings.panelPosition.left) setupLayer.style.left = settings.panelPosition.left;
+                    if (settings.panelPosition.top) setupLayer.style.top = settings.panelPosition.top;
+                }
+                
+                if (settings.leaderboardPosition) {
+                    const leaderboardContainer = document.getElementById('leaderboard-container');
+                    if (settings.leaderboardPosition.left) leaderboardContainer.style.left = settings.leaderboardPosition.left;
+                    if (settings.leaderboardPosition.top) leaderboardContainer.style.top = settings.leaderboardPosition.top;
+                }
+                
+                if (settings.leaderboardVisible !== undefined) {
+                    const leaderboard = document.getElementById('leaderboard');
+                    leaderboard.style.display = settings.leaderboardVisible ? 'block' : 'none';
+                }
+                
                 // Restaurer les images
                 if (settings.trackImageData) {
                     try {
@@ -1523,7 +2254,9 @@
                 updateHistoryDisplay();
                 updateQueueDisplay();
                 updatePathInfoDisplay();
+                updateObstaclesDisplay();
                 updateFontPreview();
+                renderLeaderboard();
                 
                 console.log("✅ Chargement terminé");
                 
@@ -1532,7 +2265,6 @@
                 
             } catch (e) {
                 console.error("❌ Erreur lors du chargement:", e);
-                // En cas d'erreur, charger une sauvegarde de secours
                 try {
                     const backup = localStorage.getItem(STORAGE_KEY + '_backup');
                     if (backup) {
@@ -1551,17 +2283,14 @@
                 clearInterval(autoSaveInterval);
             }
             
-            // Sauvegarde toutes les 10 secondes
             autoSaveInterval = setInterval(() => {
                 if (document.visibilityState === 'visible') {
                     saveSettings();
                 }
             }, AUTO_SAVE_INTERVAL);
             
-            // Sauvegarde quand la page est quittée
             window.addEventListener('beforeunload', () => {
                 saveSettings();
-                // Créer un backup
                 try {
                     const settings = getFullSettings();
                     localStorage.setItem(STORAGE_KEY + '_backup', JSON.stringify(settings));
@@ -1570,7 +2299,6 @@
                 }
             });
             
-            // Sauvegarde quand la page devient invisible
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'hidden') {
                     saveSettings();
@@ -1623,9 +2351,8 @@
             saveSettings();
         }
 
-        // MODE CRÉATION DE POINTS
+        // Mode création de points
         function togglePathCreationMode() {
-            // Si le mode édition est actif, le désactiver d'abord
             if (pathEditMode) {
                 togglePathEditMode();
             }
@@ -1640,11 +2367,9 @@
                 btn.style.color = 'white';
                 controls.style.display = 'flex';
                 
-                // Activer le clic sur le canvas pour ajouter des points
                 canvas.addEventListener('click', addPathPointOnClick);
                 canvas.classList.add('creating-path');
                 
-                // Afficher les points existants
                 showAllPathPoints();
                 
                 alert("Mode création activé ! Cliquez sur la piste pour ajouter des points.");
@@ -1654,14 +2379,11 @@
                 btn.style.color = '#1e40af';
                 controls.style.display = 'none';
                 
-                // Désactiver le clic
                 canvas.removeEventListener('click', addPathPointOnClick);
                 canvas.classList.remove('creating-path');
                 
-                // Nettoyer l'affichage des points
                 hideAllPathPoints();
                 
-                // Sauvegarder si assez de points
                 if (pathNodes.length >= 2) {
                     saveSettings();
                 }
@@ -1728,13 +2450,11 @@
                 nodeEl.dataset.index = index;
                 nodeEl.title = `Point ${index + 1}`;
                 
-                // Ajouter un numéro
                 const number = document.createElement('div');
                 number.className = 'path-point-number';
                 number.innerText = (index + 1).toString();
                 nodeEl.appendChild(number);
                 
-                // Rendre le point déplaçable
                 nodeEl.addEventListener('mousedown', startPathPointDrag);
                 
                 document.getElementById('game-container').appendChild(nodeEl);
@@ -1976,7 +2696,6 @@
                 ctx.stroke();
             }
 
-            // Dessiner les points en mode création
             if (pathCreationMode && pathNodes.length > 0) {
                 pathNodes.forEach((point, index) => {
                     ctx.beginPath();
@@ -2202,13 +2921,18 @@
             saveSettings();
         }
 
-        // Gestion du drag
+        // Gestion du drag pour piste/fond/chemin/obstacles
         function startDrag(e) {
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
             
             if (pathCreationMode && draggingNode !== null) {
                 dragMode = 'path';
+                return;
+            }
+            
+            if (draggingObstacle !== null) {
+                dragMode = 'obstacle';
                 return;
             }
             
@@ -2233,10 +2957,38 @@
                 pathNodes[draggingNode].x += deltaX;
                 pathNodes[draggingNode].y += deltaY;
                 
-                const nodeEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
-                if (nodeEl) {
-                    nodeEl.style.left = (pathNodes[draggingNode].x - 12) + 'px';
-                    nodeEl.style.top = (pathNodes[draggingNode].y - 12) + 'px';
+                const pointEl = document.querySelector(`.path-node[data-index="${draggingNode}"]`);
+                if (pointEl) {
+                    pointEl.style.left = (pathNodes[draggingNode].x - 12) + 'px';
+                    pointEl.style.top = (pathNodes[draggingNode].y - 12) + 'px';
+                }
+            } else if (dragMode === 'obstacle' && draggingObstacle !== null) {
+                // Trouver le point le plus proche sur le chemin
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                let closestProgress = draggingObstacle.progress;
+                let minDistance = Infinity;
+                
+                for (let i = 0; i <= 100; i++) {
+                    const progress = i / 100;
+                    const pos = getPositionOnPath(progress);
+                    const distance = Math.sqrt(Math.pow(pos.x - x, 2) + Math.pow(pos.y - y, 2));
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestProgress = progress;
+                    }
+                }
+                
+                draggingObstacle.progress = closestProgress;
+                updateObstaclePosition(draggingObstacle);
+                
+                const markerEl = document.querySelector(`.obstacle-marker[data-id="${draggingObstacle.id}"]`);
+                if (markerEl) {
+                    markerEl.style.left = (draggingObstacle.x - 10) + 'px';
+                    markerEl.style.top = (draggingObstacle.y - 10) + 'px';
                 }
             } else if (isDraggingBackground && dragMode === 'background') {
                 backgroundX += deltaX;
@@ -2246,7 +2998,7 @@
                 trackY += deltaY;
             }
             
-            if (isDraggingBackground || isDraggingTrack || dragMode === 'path') {
+            if (isDraggingBackground || isDraggingTrack || dragMode === 'path' || dragMode === 'obstacle') {
                 draw();
             }
         }
@@ -2256,6 +3008,9 @@
             isDraggingBackground = false;
             if (dragMode === 'path') {
                 draggingNode = null;
+                saveSettings();
+            } else if (dragMode === 'obstacle') {
+                draggingObstacle = null;
                 saveSettings();
             }
             canvas.classList.remove('dragging');
@@ -2304,6 +3059,7 @@
             }
             
             drawPathWithPoints();
+            drawObstacles();
         }
 
         // Calcul de position sur le chemin
@@ -2346,7 +3102,7 @@
             return length;
         }
 
-        // Dessin des joueurs (MODIFIÉ POUR UTILISER LES NOUVEAUX PARAMÈTRES)
+        // Dessin des joueurs
         function drawPlayers() {
             if (players.length === 0) return;
             
@@ -2355,45 +3111,60 @@
                 
                 const pos = getPositionOnPath(player.progress);
                 
-                // Ombre portée de la bulle
+                // Effet visuel selon l'obstacle actif
+                if (Date.now() < player.effectEnd) {
+                    ctx.save();
+                    switch(player.effectType) {
+                        case 'snail':
+                            ctx.shadowColor = '#ea580c';
+                            ctx.shadowBlur = 15;
+                            break;
+                        case 'lightning':
+                            ctx.shadowColor = '#fbbf24';
+                            ctx.shadowBlur = 20;
+                            break;
+                        case 'blackhole':
+                            ctx.shadowColor = '#1f2937';
+                            ctx.shadowBlur = 15;
+                            break;
+                    }
+                }
+                
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y + 3, 8, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fill();
                 
-                // Cercle du joueur (bulle)
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
                 ctx.fillStyle = player.color;
                 ctx.fill();
                 
-                // Bordure blanche de la bulle
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 
-                // Préparer le style du texte
+                if (Date.now() < player.effectEnd) {
+                    ctx.restore();
+                }
+                
                 let text = player.name;
                 if (playerNameTextTransform === 'uppercase') {
                     text = text.toUpperCase();
                 }
                 
-                // Configurer la police
                 ctx.font = `${playerNameFontStyle} ${playerNameFontWeight} ${playerNameSize}px ${playerNameFontFamily}`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 
-                // Ombre du texte
                 ctx.shadowColor = playerNameShadowColor;
                 ctx.shadowBlur = playerNameShadowBlur;
                 ctx.shadowOffsetX = playerNameShadowOffset;
                 ctx.shadowOffsetY = playerNameShadowOffset;
                 
-                // Dessiner le texte
                 ctx.fillStyle = playerNameColor;
                 ctx.fillText(text, pos.x, pos.y - 12);
                 
-                // Réinitialiser l'ombre pour les prochains dessins
                 ctx.shadowColor = 'transparent';
                 ctx.shadowBlur = 0;
                 ctx.shadowOffsetX = 0;
@@ -2583,6 +3354,7 @@
             });
             
             draw();
+            renderLeaderboard();
         }
 
         function updatePlayerCount(current, max) {
@@ -2675,38 +3447,6 @@
                 panel.style.display = 'none';
                 restoreBtn.classList.remove('hidden');
             }
-            saveSettings();
-        }
-
-        function startPanelDrag(e) {
-            if (e.target.closest('button')) return;
-            
-            isDraggingPanel = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            const setupLayer = document.getElementById('setup-layer');
-            startLeft = setupLayer.offsetLeft;
-            startTop = setupLayer.offsetTop;
-            
-            document.addEventListener('mousemove', onPanelDrag);
-            document.addEventListener('mouseup', stopPanelDrag);
-        }
-
-        function onPanelDrag(e) {
-            if (!isDraggingPanel) return;
-            
-            const deltaX = e.clientX - startX;
-            const deltaY = e.clientY - startY;
-            const setupLayer = document.getElementById('setup-layer');
-            
-            setupLayer.style.left = (startLeft + deltaX) + 'px';
-            setupLayer.style.top = (startTop + deltaY) + 'px';
-        }
-
-        function stopPanelDrag() {
-            isDraggingPanel = false;
-            document.removeEventListener('mousemove', onPanelDrag);
-            document.removeEventListener('mouseup', stopPanelDrag);
             saveSettings();
         }
 
@@ -2833,6 +3573,7 @@
                 this.laneOffset = (id - (MAX_PLAYERS / 2)) * 2.5;
                 this.multiplier = 1;
                 this.effectEnd = 0;
+                this.effectType = null;
                 this.isFinished = false;
                 this.finishTime = null;
             }
@@ -2841,7 +3582,11 @@
                 if (this.progress < 1 && !this.isFinished) {
                     if (Date.now() > this.effectEnd) {
                         this.multiplier = 1;
+                        this.effectType = null;
                     }
+                    
+                    // Vérifier les collisions avec les obstacles
+                    checkObstacleCollision(this);
                     
                     this.progress += (this.speedBase + Math.random() * 0.0004) * this.multiplier;
                     
@@ -2908,14 +3653,19 @@
             const leaderList = document.getElementById('leader-list');
             const sortedPlayers = [...players]
                 .sort((a, b) => b.progress - a.progress)
-                .slice(0, 5);
+                .slice(0, 8);
+            
+            if (sortedPlayers.length === 0) {
+                leaderList.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">Course en attente...</div>';
+                return;
+            }
             
             leaderList.innerHTML = sortedPlayers.map((player, index) => `
-                <div class="flex items-center gap-2 mb-1 text-sm">
-                    <span class="font-bold text-gray-500 w-4">${index + 1}.</span>
-                    <div class="w-2 h-2 rounded-full" style="background:${player.color}"></div>
-                    <span class="truncate font-bold">${player.name}</span>
-                    <span class="ml-auto text-xs text-gray-500">${Math.round(player.progress * 100)}%</span>
+                <div class="leaderboard-row">
+                    <div class="leaderboard-rank">${index + 1}.</div>
+                    <div class="leaderboard-color" style="background:${player.color}"></div>
+                    <div class="leaderboard-name">${player.name}</div>
+                    <div class="leaderboard-progress">${Math.round(player.progress * 100)}%</div>
                 </div>
             `).join('');
         }
@@ -2926,23 +3676,24 @@
             isRacing = true;
             winner = null;
             
+            // Réactiver tous les obstacles
+            obstacles.forEach(o => o.active = true);
+            
             document.getElementById('winner-overlay').style.display = 'none';
             document.getElementById('setup-layer').style.display = 'none';
             document.getElementById('restore-btn').classList.remove('hidden');
-            document.getElementById('leaderboard').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'block';
             
             players.forEach(player => {
                 player.progress = 0;
                 player.isFinished = false;
                 player.finishTime = null;
+                player.multiplier = 1;
+                player.effectEnd = 0;
+                player.effectType = null;
             });
             
             update();
-            
-            setTimeout(() => {
-                document.getElementById('leaderboard').style.display = 'block';
-            }, 2000);
-            
             saveSettings();
         }
 
@@ -3076,7 +3827,7 @@
             document.getElementById('winner-overlay').style.display = 'none';
             document.getElementById('setup-layer').style.display = 'flex';
             document.getElementById('restore-btn').classList.add('hidden');
-            document.getElementById('leaderboard').style.display = 'none';
+            document.getElementById('leaderboard').style.display = 'block';
             
             registeredNames = [];
             players = [];
@@ -3086,6 +3837,9 @@
                 registeredNames.push(name);
                 players.push(new Player(players.length, name));
             }
+            
+            // Réactiver tous les obstacles
+            obstacles.forEach(o => o.active = true);
             
             updateQueueDisplay();
             renderPlayerList();
